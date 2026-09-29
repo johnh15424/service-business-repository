@@ -1,16 +1,25 @@
-# Service Business Calculator Factory
+# Service Business Calculators V2
 
-Static mobile-friendly calculator site designed for bulk deployment.
+Static, no-build calculator site designed for Cloudflare Workers/Pages style hosting.
 
-Initial tools:
+## Included tools
 - Dog Grooming Price Calculator
 - Junk Removal Quote Calculator
 - Mobile Detailing Quote Calculator
 - Pressure Washing Price Calculator
 - Commercial Cleaning Bid Calculator
 
-## Deploy
-Upload the folder to any static host (Cloudflare Pages, Netlify, GitHub Pages, etc.). No build step is required.
+## Improvements in V2
+- Individual SEO-friendly URLs
+- Shared config-driven calculator engine
+- Currency selector: USD, EUR, GBP, CAD, AUD
+- Cost base, pre-tax price, tax, profit and margin outputs
+- Minimum-charge protection
+- FAQs and related-tool internal links
+- Mobile-first responsive design
+- Monetisation CTA placeholders
 
-## Expand
-Add new calculator definitions in `tools.js` using the existing config pattern.
+## Deployment
+Upload all files and folders in this project to the repository root. Your existing Cloudflare deployment should redeploy automatically from `main`.
+
+No build command is required.
