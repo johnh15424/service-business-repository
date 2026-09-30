@@ -42,9 +42,11 @@ test('mobile travel is included only in mobile mode',t=>{
  set('mobile','yes');assert.notEqual(result('hero'),original);assert.equal($('travel-fields').hidden,false);
  set('mobile','no');assert.equal(result('hero'),original);
 });
-test('service examples require explicit application and explain pending changes',t=>{
- const {set,$}=setup(t);set('service','nails');assert.equal($('example-reminder').hidden,false);assert.equal($('baseMinutes').value,'105');
+test('service examples require explicit application and give visible confirmation',t=>{
+ const {set,$,dom}=setup(t);set('service','nails');assert.equal($('example-reminder').hidden,false);assert.equal($('baseMinutes').value,'105');
  $('apply-example').click();assert.equal($('baseMinutes').value,'15');assert.equal($('coatMinutes').value,'0');assert.equal($('example-reminder').hidden,true);
+ assert.match($('apply-example').textContent,/Example applied/);assert.match($('status').textContent,/estimate recalculated/);
+ assert.equal(dom.window.dataLayer.filter(e=>e.event==='example_applied').length,1);
 });
 test('custom currency uses ISO decimal precision and rejects unknown codes',t=>{
  const {set,result}=setup(t);set('currency','CUSTOM');set('customCurrency','JPY');assert.match(result('hero'),/JPY/);assert.doesNotMatch(result('hero'),/\.\d/);
