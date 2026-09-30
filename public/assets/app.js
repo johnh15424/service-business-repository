@@ -2,6 +2,17 @@ import {calculate,numericKeys} from './pricing.js';
 import {countries,provinces,services,example,reviewed} from './profiles.js';
 const $=id=>document.getElementById(id);
 const form=$('calculator');
+const canonical=document.querySelector('link[rel="canonical"]');
+if(canonical)canonical.href='https://servicepricingtools.com/dog-grooming-price-calculator/';
+const ogUrl=document.querySelector('meta[property="og:url"]');
+if(ogUrl)ogUrl.content='https://servicepricingtools.com/dog-grooming-price-calculator/';
+document.querySelectorAll('.brand').forEach(el=>{
+ const img=el.querySelector('img');
+ el.replaceChildren();
+ if(img)el.append(img);
+ el.append(document.createTextNode('Service Pricing '));
+ const span=document.createElement('span');span.textContent='Tools';el.append(span);
+});
 // Provider-neutral hooks only: no cookies, personal data or network requests.
 function track(event, placement){
  const detail={event,calculator:'dog_grooming',...(placement?{placement}:{})};
