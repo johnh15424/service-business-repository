@@ -120,9 +120,30 @@ form.addEventListener('change',e=>{
 });
 form.addEventListener('submit',e=>{e.preventDefault();run();if(!current){const bad=form.querySelector('[aria-invalid=true]');if(bad){bad.closest('details').open=true;bad.focus();}else $('estimate').focus();}else{trackCompletion();$('estimate').focus();$('estimate').scrollIntoView({behavior:'smooth',block:'start'});}});
 $('apply-example').addEventListener('click',()=>{
- Object.entries(example($('service').value,Number($('size').value),$('coat').value,$('condition').value)).forEach(([k,v])=>$(k).value=v);
+ const button=$('apply-example');
+ const exampleValues=example($('service').value,Number($('size').value),$('coat').value,$('condition').value);
+ const changed=[];
+ Object.entries(exampleValues).forEach(([k,v])=>{
+  const el=$(k);
+  if(String(el.value)!==String(v))changed.push(el);
+  el.value=v;
+ });
  $('example-reminder').hidden=true;
- run();status('Groom example applied. Base time, coat time, products, wear and minimum were replaced. Review them before quoting.');
+ run();
+ changed.forEach(el=>{
+  el.classList.remove('example-applied');
+  void el.offsetWidth;
+  el.classList.add('example-applied');
+  setTimeout(()=>el.classList.remove('example-applied'),1300);
+ });
+ const original=button.dataset.originalLabel||button.textContent;
+ button.dataset.originalLabel=original;
+ button.textContent='Example applied ✓';
+ button.classList.add('example-button-applied');
+ clearTimeout(button._confirmTimer);
+ button._confirmTimer=setTimeout(()=>{button.textContent=original;button.classList.remove('example-button-applied');},1800);
+ status(`Groom example applied. ${changed.length} field${changed.length===1?'':'s'} updated and the estimate recalculated. Review the highlighted values before quoting.`);
+ track('example_applied','appointment');
 });
 $('reset').addEventListener('click',()=>{form.reset();$('province').value='AB';run();status('Example inputs restored. Saved settings are unchanged; use Clear saved settings to remove them.');});
 $('save').addEventListener('click',()=>{run();if(!current)return;try{localStorage.setItem(storeKey,JSON.stringify({version:3,values:raw()}));status('Settings saved in this browser on this device.');}catch{status('This browser could not save settings. You can still download your estimate.');}});
