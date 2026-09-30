@@ -1,0 +1,9 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync,existsSync,readdirSync} from 'node:fs';
+import {join} from 'node:path';
+const read=p=>readFileSync(p,'utf8');
+test('Cloudflare serves only public files and real 404s',()=>{const c=JSON.parse(read('wrangler.jsonc'));assert.equal(c.assets.directory,'./public');assert.equal(c.assets.not_found_handling,'404-page');for(const p of ['.git','README.md','tests','archive','package.json','wrangler.jsonc'])assert.equal(existsSync(join('public',p)),false);});
+test('static pages have unique titles, descriptions and working internal targets',()=>{const pages=['index.html','dog-grooming-price-calculator/index.html','grooming-pricing-guide/index.html'];const titles=new Set();for(const page of pages){const html=read('public/'+page);titles.add(html.match(/<title>(.*?)<\/title>/)[1]);assert.match(html,/<meta name="description" content=".{40,}"/);assert.match(html,/<h1>/);for(const [,link] of html.matchAll(/(?:src|href)="(\/[^"#]*)(?:#[^"]*)?"/g)){const path='public'+link;assert.ok(existsSync(path),`${page}: missing ${link}`);}}assert.equal(titles.size,pages.length);});
+test('calculator input ids are unique and engine inputs exist',async()=>{const {numericKeys}=await import('../public/assets/pricing.js');const html=read('public/dog-grooming-price-calculator/index.html');const ids=[...html.matchAll(/ id="([^"]+)"/g)].map(x=>x[1]);assert.equal(ids.length,new Set(ids).size);for(const key of numericKeys)assert.ok(ids.includes(key),key);});
+test('public assets contain no purchase URLs or legacy calculators',()=>{assert.equal(existsSync('public/tools.js'),false);assert.equal(existsSync('public/pressure-washing-price-calculator'),false);const html=read('public/dog-grooming-price-calculator/index.html');assert.doesNotMatch(html,/buy\.stripe|checkout\.stripe|etsy\.com/);});
