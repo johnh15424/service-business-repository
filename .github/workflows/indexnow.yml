@@ -14,7 +14,7 @@ jobs:
       - name: Wait for Cloudflare deployment
         run: |
           for i in {1..12}; do
-            if curl -fsS "https://service-business-repository.irishambience.workers.dev/13f4dcb7d82e0d9d9815a192a3cbe0f1.txt" | grep -q "13f4dcb7d82e0d9d9815a192a3cbe0f1"; then
+            if curl -fsS "https://servicepricingtools.com/13f4dcb7d82e0d9d9815a192a3cbe0f1.txt" | grep -q "13f4dcb7d82e0d9d9815a192a3cbe0f1"; then
               exit 0
             fi
             sleep 15
@@ -26,17 +26,17 @@ jobs:
           curl -fsS -X POST 'https://api.indexnow.org/indexnow' \
             -H 'Content-Type: application/json; charset=utf-8' \
             -d '{
-              "host": "service-business-repository.irishambience.workers.dev",
+              "host": "servicepricingtools.com",
               "key": "13f4dcb7d82e0d9d9815a192a3cbe0f1",
-              "keyLocation": "https://service-business-repository.irishambience.workers.dev/13f4dcb7d82e0d9d9815a192a3cbe0f1.txt",
+              "keyLocation": "https://servicepricingtools.com/13f4dcb7d82e0d9d9815a192a3cbe0f1.txt",
               "urlList": [
-                "https://service-business-repository.irishambience.workers.dev/",
-                "https://service-business-repository.irishambience.workers.dev/dog-grooming-price-calculator/",
-                "https://service-business-repository.irishambience.workers.dev/grooming-pricing-guide/",
-                "https://service-business-repository.irishambience.workers.dev/dog-grooming-business-costs/",
-                "https://service-business-repository.irishambience.workers.dev/mobile-dog-grooming-pricing/",
-                "https://service-business-repository.irishambience.workers.dev/dog-grooming-profit-margin/",
-                "https://service-business-repository.irishambience.workers.dev/how-to-price-dog-grooming-services/",
-                "https://service-business-repository.irishambience.workers.dev/dog-grooming-price-list-guide/"
+                "https://servicepricingtools.com/",
+                "https://servicepricingtools.com/dog-grooming-price-calculator/",
+                "https://servicepricingtools.com/grooming-pricing-guide/",
+                "https://servicepricingtools.com/dog-grooming-business-costs/",
+                "https://servicepricingtools.com/mobile-dog-grooming-pricing/",
+                "https://servicepricingtools.com/dog-grooming-profit-margin/",
+                "https://servicepricingtools.com/how-to-price-dog-grooming-services/",
+                "https://servicepricingtools.com/dog-grooming-price-list-guide/"
               ]
             }'
