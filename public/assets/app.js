@@ -12,7 +12,7 @@ for(const [key,[name]] of Object.entries(provinces)){
 }
 function status(text){$('status').textContent=text;}
 function raw(){return Object.fromEntries([...numericKeys,...stringKeys].map(k=>[k,$(k).value]));}
-function money(n){return new Intl.NumberFormat('en-IE',{style:'currency',currency,minimumFractionDigits:2,maximumFractionDigits:2}).format(n);}
+function money(n){return new Intl.NumberFormat('en-IE',{style:'currency',currency,currencyDisplay:'code'}).format(n);}
 function contextual(){
  $('province-field').hidden=$('country').value!=='CA';
  $('custom-currency-field').hidden=$('currency').value!=='CUSTOM';
@@ -56,9 +56,14 @@ function run(){
  currency=$('currency').value==='CUSTOM'?$('customCurrency').value.trim().toUpperCase():$('currency').value;
  if(!/^[A-Z]{3}$/.test(currency)){
   messages.push('Enter a three-letter currency code.');$('customCurrency').setAttribute('aria-invalid','true');
- }else{try{money(0);}catch{messages.push('Enter a valid currency code.');}}
+ }else{try{
+  if(typeof Intl.supportedValuesOf==='function' && !Intl.supportedValuesOf('currency').includes(currency))throw new Error();
+  v.currencyDigits=new Intl.NumberFormat('en',{style:'currency',currency}).resolvedOptions().maximumFractionDigits;
+  money(0);
+ }catch{messages.push('Enter a recognised ISO currency code.');$('customCurrency').setAttribute('aria-invalid','true');}}
  if(!messages.length){try{current={inputs:v,result:calculate(v)};}catch(e){messages.push(e.message);}}
  errors(messages);
+ $('quick-estimate').textContent=current?'View estimate · '+money(current.result.total):'Check inputs · estimate paused';
  $('download').disabled=!current;$('save').disabled=!current;
  if(!current){
   document.querySelectorAll('[data-result]').forEach(el=>el.textContent='—');
@@ -66,7 +71,7 @@ function run(){
  }
  const r=current.result;
  document.querySelectorAll('[data-result]').forEach(el=>{
-  const k=el.dataset.result;const value=k==='hero'?r.total:(r[k]??v[k]);
+  const k=el.dataset.result;const value=k==='hero'?r.total:(Object.hasOwn(r,k)?r[k]:v[k]);
   el.textContent=['grossMargin','retainedMargin','markup'].includes(k)?(value===null?'Not applicable':value.toFixed(1)+'%'):money(value);
  });
  const taxLabel=$('taxLabel').value.trim()||'Tax';
@@ -74,6 +79,7 @@ function run(){
  $('duration').textContent=`${r.totalMinutes.toFixed(r.totalMinutes%1?1:0)} working minutes`;
  $('service-summary').textContent=`${services[$('service').value].name} · ${$('size').selectedOptions[0].textContent}`;
  const notices=[];
+ if(r.preTax>10000)notices.push('This is a very large single-appointment price. Check currency, units, costs and percentages before using it.');
  if(r.minimumApplied)notices.push('Your minimum charge sets this price, so the retained margin is above your target.');
  if(r.denominator<.1)notices.push('Less than 10% of revenue is left to cover the cost base. This combination produces a very high price; review your target and fees.');
  if(v.wage===0)notices.push('Labour is zero. Include the value of your own time to avoid understating cost.');
@@ -86,6 +92,8 @@ function run(){
 }
 form.addEventListener('input',()=>{run();clearTimeout(statusTimer);statusTimer=setTimeout(()=>status(current?'Estimate updated. Changes are not saved until you choose Save settings.':'Estimate paused. Check the highlighted inputs.'),650);});
 form.addEventListener('change',e=>{
+ clearTimeout(statusTimer);
+ if(['service','size','coat','condition'].includes(e.target.id))$('example-reminder').hidden=false;
  if(e.target.id==='country')setCountry();
  if(e.target.id==='province'){setProvince();status('Province tax reference updated. Check any additional provincial tax.');}
  if(e.target.id==='currency')status('Currency labels updated only. Cost amounts have not been converted.');
@@ -94,6 +102,7 @@ form.addEventListener('change',e=>{
 form.addEventListener('submit',e=>{e.preventDefault();run();if(!current){const bad=form.querySelector('[aria-invalid=true]');if(bad){bad.closest('details').open=true;bad.focus();}else $('estimate').focus();}else{$('estimate').focus();$('estimate').scrollIntoView({behavior:'smooth',block:'start'});}});
 $('apply-example').addEventListener('click',()=>{
  Object.entries(example($('service').value,Number($('size').value),$('coat').value,$('condition').value)).forEach(([k,v])=>$(k).value=v);
+ $('example-reminder').hidden=true;
  run();status('Groom example applied. Base time, coat time, products, wear and minimum were replaced. Review them before quoting.');
 });
 $('reset').addEventListener('click',()=>{form.reset();$('province').value='AB';run();status('Example inputs restored. Saved settings are unchanged; use Clear saved settings to remove them.');});

@@ -12,15 +12,15 @@ Core cost C = direct costs + monthly overhead / paid appointments + fixed transa
 
 If fees are charged on the full customer total, effective percentage fee F = f × (1+t). Otherwise F = f.
 Required pre-tax price P = C / (1 − target margin − contingency − F).
-Recommended P = max(required P, minimum), rounded upwards to cents.
-Tax = P × t, rounded to nearest cent. Customer total = P + tax.
+Recommended P = max(required P, minimum), rounded upwards to the selected currency’s minor unit.
+Tax = P × t, rounded to the nearest currency minor unit. Customer total = P + tax.
 Variable payment fee = selected basis × fee rate; estimate retains sub-cent fee precision.
 
 Accounting gross profit = P − direct costs.
 Planning surplus = gross profit − overhead − fixed fee − variable fee − contingency.
 The user-facing target is conservatively applied after all these costs. Both gross margin and retained margin are displayed with explicit labels. This avoids representing a fully allocated surplus as accounting gross profit.
 
-Payment provider settlement rounding can differ by cents. No-show contingency is a revenue reserve, not a stochastic loss-rate model. All monetary outputs use two decimal places, including custom currencies; unsupported fractional conventions are explicitly disclosed.
+Payment provider settlement rounding can differ by cents. No-show contingency is a revenue reserve, not a stochastic loss-rate model. Currency formatting and rounding follow ISO currency precision (including zero-decimal JPY and three-decimal KWD). A rounded-tax fee correction protects the target from small rounding shortfalls. Quotes above one billion currency units are rejected, and unusually large appointment prices receive a warning.
 
 ## Workbook v1
 
@@ -39,7 +39,7 @@ Intentional web differences:
 
 The workbook has not been modified. The static toolkit CTA links to compatibility notes, with purchase access unavailable. A future workbook release should share these tests and definitions.
 
-## Tax references checked 2026-09-29
+## Tax references checked 2026-09-30
 
 - Ireland Revenue dog grooming classification: https://www.revenue.ie/en/vat/vat-rates/search-vat-rates/D/dog-grooming.aspx
 - Ireland current standard rate 23%: https://www.revenue.ie/en/vat/vat-rates/search-vat-rates/current-vat-rates.aspx

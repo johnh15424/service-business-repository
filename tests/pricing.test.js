@@ -22,3 +22,14 @@ test('all-zero costs with positive time gives finite zero outputs',()=>{const r=
 test('service and size examples differ; nails do not carry coat time',()=>{assert.ok(example('full',2,'curly','tangled').baseMinutes>example('full',0,'short','maintained').baseMinutes);near(example('nails',1,'double','matted').coatMinutes,0);near(example('full',1,'curly','maintained').shampoo+example('full',1,'curly','maintained').conditioner+example('full',1,'curly','maintained').specialist,6.5);});
 test('country/province defaults include current Nova Scotia and manual US rate',()=>{near(countries.IE.rate,23);near(countries.GB.rate,20);near(countries.AU.rate,10);near(countries.US.rate,0);near(provinces.NS[1],14);near(provinces.ON[1],13);});
 test('cent rounding never underprices the continuous recommendation',()=>{for(const taxRate of [0,5,13,14,20,23])for(const margin of [0,20,40,70]){const r=calculate({...base(),wage:18.37,margin,fee:2.9,fixedFee:.3,reserve:3,taxRate,chargeTax:true});assert.ok(r.preTax>=r.required-1e-8);assert.ok(r.retainedMargin>=margin-.001);near(r.total,r.preTax+r.tax);}});
+test('currency rounding funds fees on rounded tax even for very small quotes',()=>{
+ for(const currencyDigits of [0,2,3])for(const wage of [.01,.03,.17,1.23,18.37])for(const taxRate of [5,14,23])for(const fee of [2.9,40]){
+  const r=calculate({...base(),currencyDigits,wage,fee,taxRate,chargeTax:true,margin:0});
+  assert.ok(r.retained>=-1e-8,JSON.stringify({currencyDigits,wage,taxRate,fee,r}));
+ }
+});
+test('extreme finite values fail before misleading quotes are returned',()=>{
+ assert.throws(()=>calculate({...base(),wage:1e9,baseMinutes:1e9}),/one billion/);
+ assert.throws(()=>calculate({...base(),overhead:1e9,appointments:.000001}),/one billion/);
+ assert.throws(()=>calculate({...base(),currencyDigits:100}),/precision/);
+});

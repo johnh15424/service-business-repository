@@ -11,6 +11,9 @@ export function calculate(v) {
   if (v.labourFactor < 1 || v.labourFactor > 3) throw new Error('Labour intensity must be between 1 and 3.');
   if (v.taxRate > 100 || v.burden > 100) throw new Error('Tax and payroll burden cannot exceed 100%.');
   if (v.margin >= 100 || v.fee >= 100 || v.reserve >= 100) throw new Error('Margin, fees and contingency must each be below 100%.');
+  const digits = v.currencyDigits ?? 2;
+  if (![0,1,2,3,4].includes(digits)) throw new Error('Unsupported currency precision.');
+  const scale = 10 ** digits;
   const taxRate = v.chargeTax ? v.taxRate / 100 : 0;
   const effectiveFee = v.fee / 100 * (v.feeBasis === 'total' ? 1 + taxRate : 1);
   const denominator = 1 - v.margin / 100 - v.reserve / 100 - effectiveFee;
@@ -29,9 +32,17 @@ export function calculate(v) {
   const direct = labour + travelLabour + consumables + v.wear + v.utilities + vehicle;
   const core = direct + overhead + v.fixedFee;
   const required = core / denominator;
-  // Round upwards to the currency cent so the unrounded recommendation is not undercut.
-  const preTax = Math.ceil((Math.max(required, v.minimum) - 1e-9) * 100) / 100;
-  const tax = Math.round((preTax * taxRate + Number.EPSILON) * 100) / 100;
+  // Reject implausible estimates before precision loss can conceal costs.
+  if (Math.max(required, v.minimum) > 1e9) throw new Error('This quote exceeds one billion currency units. Review costs, appointment count and percentages.');
+  let preTax = Math.ceil(Math.max(required, v.minimum) * scale - 1e-7) / scale;
+  const roundedTax = price => Math.round((price * taxRate + Number.EPSILON) * scale) / scale;
+  // Fees on rounded tax can otherwise leave a small shortfall at break-even.
+  for (let i=0; i<12; i++) {
+    const shortfall = core + (v.feeBasis === 'total' ? roundedTax(preTax) * v.fee / 100 : 0) - preTax * (1-v.margin/100-v.reserve/100-v.fee/100);
+    if (shortfall <= 1e-9) break;
+    preTax += Math.max(1, Math.ceil(shortfall / denominator * scale)) / scale;
+  }
+  const tax = roundedTax(preTax);
   const total = preTax + tax;
   const variableFee = (v.feeBasis === 'total' ? total : preTax) * v.fee / 100;
   const reserve = preTax * v.reserve / 100;
