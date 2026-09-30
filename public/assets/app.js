@@ -149,3 +149,18 @@ run();
 track('calculator_viewed');
 $('quick-estimate').addEventListener('click',trackCompletion);
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
+
+const resultToolkit=document.querySelector('.result-toolkit');
+if(resultToolkit && !document.getElementById('free-checklist')){
+ const section=document.createElement('section');
+ section.className='result-toolkit';
+ section.id='free-checklist';
+ section.setAttribute('aria-labelledby','free-checklist-title');
+ const title=document.createElement('h3');title.id='free-checklist-title';title.textContent='Before you change your prices, run the 10-point check';
+ const copy=document.createElement('p');copy.textContent='Download the free Dog Grooming Pricing Checklist to review labour, consumables, equipment wear, overhead, travel, payment fees, tax and margin.';
+ const link=document.createElement('a');link.className='secondary button-link';link.href='https://payhip.com/b/OyKL2';link.dataset.freeCta='results';link.textContent='Get the free pricing checklist';
+ const micro=document.createElement('p');micro.className='micro';micro.textContent='Free digital download through Payhip. Marketing emails are optional.';
+ section.append(title,copy,link,micro);
+ resultToolkit.before(section);
+ link.addEventListener('click',()=>track('free_checklist_clicked','results'));
+}
