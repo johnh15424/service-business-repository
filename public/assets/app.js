@@ -2,6 +2,14 @@ import {calculate,numericKeys} from './pricing.js';
 import {countries,provinces,services,example,reviewed} from './profiles.js';
 const $=id=>document.getElementById(id);
 const form=$('calculator');
+// Provider-neutral hooks only: no cookies, personal data or network requests.
+function track(event, placement){
+ const detail={event,calculator:'dog_grooming',...(placement?{placement}:{})};
+ try{window.dataLayer=window.dataLayer||[];window.dataLayer.push(detail);}catch{}
+ try{window.dispatchEvent(new CustomEvent('calculator:conversion',{detail}));}catch{}
+}
+let completionTracked=false;
+function trackCompletion(){if(current&&!completionTracked){completionTracked=true;track('calculator_completed');}}
 const storeKey='grooming-calculator-v3';
 const stringKeys=['country','currency','customCurrency','province','chargeTax','taxLabel','service','size','coat','condition','mobile','feeBasis'];
 let current=null;
@@ -99,7 +107,7 @@ form.addEventListener('change',e=>{
  if(e.target.id==='currency')status('Currency labels updated only. Cost amounts have not been converted.');
  run();
 });
-form.addEventListener('submit',e=>{e.preventDefault();run();if(!current){const bad=form.querySelector('[aria-invalid=true]');if(bad){bad.closest('details').open=true;bad.focus();}else $('estimate').focus();}else{$('estimate').focus();$('estimate').scrollIntoView({behavior:'smooth',block:'start'});}});
+form.addEventListener('submit',e=>{e.preventDefault();run();if(!current){const bad=form.querySelector('[aria-invalid=true]');if(bad){bad.closest('details').open=true;bad.focus();}else $('estimate').focus();}else{trackCompletion();$('estimate').focus();$('estimate').scrollIntoView({behavior:'smooth',block:'start'});}});
 $('apply-example').addEventListener('click',()=>{
  Object.entries(example($('service').value,Number($('size').value),$('coat').value,$('condition').value)).forEach(([k,v])=>$(k).value=v);
  $('example-reminder').hidden=true;
@@ -126,3 +134,7 @@ try{
  }
 }catch{status('Saved settings could not be restored. The example inputs are ready to edit.');}
 run();
+
+track('calculator_viewed');
+$('quick-estimate').addEventListener('click',trackCompletion);
+document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));

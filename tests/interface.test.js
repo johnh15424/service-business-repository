@@ -66,3 +66,15 @@ test('HTML assets, internal paths and fragment links all resolve',()=>{
   page.window.close();
  }
 });
+test('conversion hooks count valid completion once and identify paid CTA placement',t=>{
+ const {dom,$,set}=setup(t);const events=dom.window.dataLayer;
+ assert.equal(events.length,1);assert.equal(events[0].event,'calculator_viewed');
+ set('wage',-1);$('quick-estimate').dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true,cancelable:true}));assert.equal(events.length,1);
+ set('wage',18);$('quick-estimate').dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true,cancelable:true}));$('quick-estimate').dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true,cancelable:true}));
+ assert.equal(events.filter(e=>e.event==='calculator_completed').length,1);
+ for(const link of dom.window.document.querySelectorAll('[data-paid-cta]')){
+  link.addEventListener('click',e=>e.preventDefault());link.click();
+ }
+ assert.deepEqual(Array.from(events.filter(e=>e.event==='paid_cta_clicked'),e=>e.placement),['results','bottom']);
+ assert.ok(events.every(e=>Object.keys(e).every(k=>['event','calculator','placement'].includes(k))));
+});
