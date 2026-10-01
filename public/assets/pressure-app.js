@@ -10,6 +10,7 @@ for(const code of currencies){const o=document.createElement('option');o.value=c
 const custom=document.createElement('option');custom.value='CUSTOM';custom.textContent='Other currency';$('currency').append(custom);
 function money(n){return new Intl.NumberFormat('en',{style:'currency',currency,currencyDisplay:'code'}).format(n)}
 function status(t){$('status').textContent=t}
+function resultEl(key){return document.querySelector(`[data-result="${key}"]`)}
 function contextual(){
  $('province-field').hidden=$('country').value!=='CA';
  $('custom-currency-field').hidden=$('currency').value!=='CUSTOM';
@@ -51,28 +52,29 @@ function run(){
   new Intl.NumberFormat('en',{style:'currency',currency}).format(0);
   current={inputs:v,result:calculate(v)};
   const r=current.result;
-  $('[data-result="hero"]').textContent=money(r.total);
+  resultEl('hero').textContent=money(r.total);
   const map={labourHours:r.labourHours,direct:r.direct,overhead:r.allocatedOverhead,core:r.core,preTax:r.preTax,tax:r.tax,retained:r.retained};
-  for(const [k,val] of Object.entries(map))$(`[data-result="${k}"]`).textContent=k==='labourHours'?val.toFixed(2):money(val);
-  $('[data-result="margin"]').textContent=r.retainedMargin.toFixed(1)+'%';
-  $('[data-result="pricePerArea"]').textContent=r.pricePerArea===null?'—':money(r.pricePerArea);
+  for(const [k,val] of Object.entries(map))resultEl(k).textContent=k==='labourHours'?val.toFixed(2):money(val);
+  resultEl('margin').textContent=r.retainedMargin.toFixed(1)+'%';
+  resultEl('pricePerArea').textContent=r.pricePerArea===null?'—':money(r.pricePerArea);
   $('tax-summary').textContent=v.chargeTax?`Includes ${money(r.tax)} ${$('taxLabel').value||'tax'} at ${v.taxRate}%.`:'Tax not charged on this estimate.';
   $('minimum-note').textContent=r.minimumApplied?'Your minimum charge sets this price.':'';
   $('quick-estimate').textContent='View estimate · '+money(r.total);
-  track('calculator_completed');
  }catch(e){current=null;$('errors').hidden=false;$('errors').textContent=e.message;document.querySelectorAll('[data-result]').forEach(el=>el.textContent='—');$('quick-estimate').textContent='Check inputs · estimate paused';}
 }
 function applyExample(){
  const j=jobs[$('jobType').value];
  const values={area:j.area,crew:j.crew,workHours:j.workHours,setupHours:j.setupHours,chemicals:j.chemicals,utilities:j.utilities,wear:j.wear,fuel:j.fuel,minimum:j.minimum};
  for(const [k,v] of Object.entries(values)){$(k).value=v;$(k).classList.remove('example-flash');void $(k).offsetWidth;$(k).classList.add('example-flash')}
- run();const btn=$('apply-example');const old=btn.textContent;btn.textContent='Example applied ✓';btn.classList.add('example-success');status('Example applied. Highlighted fields were updated; review them before quoting.');setTimeout(()=>{btn.textContent=old;btn.classList.remove('example-success')},1800);
+ run();const btn=$('apply-example');const old=btn.textContent;btn.textContent='Example applied ✓';btn.classList.add('example-success');status('Example applied. Highlighted fields were updated; review them before quoting.');track('example_applied',$('jobType').value);setTimeout(()=>{btn.textContent=old;btn.classList.remove('example-success')},1800);
 }
+let completionTracked=false;
+function trackCompletion(){if(current&&!completionTracked){completionTracked=true;track('calculator_completed')}}
 form.addEventListener('input',run);
 form.addEventListener('change',e=>{if(e.target.id==='country')setCountry();else if(e.target.id==='province'){setProvince();run()}else run()});
-form.addEventListener('submit',e=>{e.preventDefault();run();$('estimate').focus();$('estimate').scrollIntoView({behavior:'smooth',block:'start'})});
+form.addEventListener('submit',e=>{e.preventDefault();run();if(current)trackCompletion();$('estimate').focus();$('estimate').scrollIntoView({behavior:'smooth',block:'start'})});
 $('apply-example').addEventListener('click',applyExample);
 $('reset').addEventListener('click',()=>{form.reset();$('province').value='AB';setCountry();applyExample();status('Example inputs restored.')});
-$('quick-estimate').addEventListener('click',()=>track('estimate_jump_clicked','mobile'));
+$('quick-estimate').addEventListener('click',()=>{trackCompletion();track('estimate_jump_clicked','mobile')});
 track('calculator_viewed');
 setCountry();applyExample();
