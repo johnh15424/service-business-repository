@@ -91,3 +91,7 @@ export function populateCountrySelect(select,countries,preferred='IE'){
  for(const [code,p] of Object.entries(countries).sort((a,b)=>a[1].name.localeCompare(b[1].name))){const o=document.createElement('option');o.value=code;o.textContent=p.name;select.append(o)}
  select.value=countries[existing]?existing:(countries[preferred]?preferred:'OTHER');
 }
+// Existing calculators import this module through their profile file. Populate the shared selector as a side effect
+// so every calculator receives the same global country list without duplicating UI code.
+const countrySelect=document.getElementById('country');
+if(countrySelect){populateCountrySelect(countrySelect,mergeCountries(),countrySelect.value||'IE');}
