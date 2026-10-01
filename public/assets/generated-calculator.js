@@ -150,7 +150,7 @@ form.addEventListener('submit', event => {
   $('estimate').scrollIntoView({ behavior:'smooth', block:'start' });
 });
 $('apply-example').addEventListener('click', applyExample);
-$('reset').addEventListener('click', () => { form.reset(); setCountry(); applyExample(); });
+$('reset').addEventListener('click', () => { form.reset(); $('country').value = 'IE'; setCountry(); applyExample(); });
 $('quick-estimate').addEventListener('click', () => track('estimate_jump_clicked', 'mobile'));
 document.querySelectorAll('[data-free-cta]').forEach(link => link.addEventListener('click', () => track('free_checklist_clicked', link.dataset.freeCta)));
 document.querySelectorAll('[data-paid-cta]').forEach(link => link.addEventListener('click', () => track('paid_cta_clicked', link.dataset.paidCta)));
