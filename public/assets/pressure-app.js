@@ -76,5 +76,7 @@ form.addEventListener('submit',e=>{e.preventDefault();run();if(current)trackComp
 $('apply-example').addEventListener('click',applyExample);
 $('reset').addEventListener('click',()=>{form.reset();$('province').value='AB';setCountry();applyExample();status('Example inputs restored.')});
 $('quick-estimate').addEventListener('click',()=>{trackCompletion();track('estimate_jump_clicked','mobile')});
+document.querySelectorAll('[data-free-cta]').forEach(link=>link.addEventListener('click',()=>track('free_checklist_clicked',link.dataset.freeCta)));
+document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');
 setCountry();applyExample();
