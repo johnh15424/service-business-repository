@@ -72,5 +72,9 @@ form.addEventListener('submit',e=>{e.preventDefault();run();if(current)trackComp
 $('apply-example').addEventListener('click',applyExample);
 $('reset').addEventListener('click',()=>{form.reset();$('province').value='AB';setCountry();applyExample();status('Example inputs restored.')});
 $('quick-estimate').addEventListener('click',()=>{trackCompletion();track('estimate_jump_clicked','mobile')});
+const toolkit=document.querySelector('.result-toolkit');
+if(toolkit){toolkit.innerHTML='<h3>House Cleaning Pricing Toolkit</h3><p>Use the free checklist for a quick cost review or take the calculator into quoting, monthly planning and break-even analysis with the Pro Toolkit.</p><a class="secondary button-link" href="https://payhip.com/b/Q5fPh" data-free-cta="results">Get the free pricing checklist ↗</a> <a class="primary button-link" href="https://payhip.com/b/9rEyJ" data-paid-cta="results">Get the Pro Toolkit - €24.99 ↗</a><p class="micro">Digital downloads delivered through Payhip. Marketing emails are optional.</p>';}
+document.querySelectorAll('[data-free-cta]').forEach(link=>link.addEventListener('click',()=>track('free_checklist_clicked',link.dataset.freeCta)));
+document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');
 setCountry();applyExample();
