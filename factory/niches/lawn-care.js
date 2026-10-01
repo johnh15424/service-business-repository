@@ -15,11 +15,11 @@ export default {
     resultEyebrow: 'YOUR LAWN CARE JOB, COSTED'
   },
   jobTypes: [
-    { id: 'mowing', label: 'Lawn mowing', example: { crew: 1, workHours: 1.25, travelHours: 0.5, fuel: 5, consumables: 2, wear: 6, disposal: 0, minimum: 55 } },
-    { id: 'hedges', label: 'Hedge trimming', example: { crew: 1, workHours: 2.5, travelHours: 0.5, fuel: 6, consumables: 3, wear: 10, disposal: 12, minimum: 95 } },
-    { id: 'tidy', label: 'Garden tidy-up', example: { crew: 2, workHours: 3, travelHours: 0.5, fuel: 8, consumables: 5, wear: 14, disposal: 30, minimum: 180 } },
-    { id: 'leaves', label: 'Leaf clearance', example: { crew: 1, workHours: 2, travelHours: 0.5, fuel: 5, consumables: 4, wear: 8, disposal: 18, minimum: 85 } },
-    { id: 'other', label: 'Other lawn / garden job', example: { crew: 1, workHours: 2, travelHours: 0.5, fuel: 5, consumables: 3, wear: 8, disposal: 0, minimum: 75 } }
+    { id: 'mowing', label: 'Lawn mowing', example: { crew: 1, workHours: 1.25, travelHours: 0.5, fuel: 5, consumables: 2, wear: 6, disposal: 0, minimumPreTax: 55 } },
+    { id: 'hedges', label: 'Hedge trimming', example: { crew: 1, workHours: 2.5, travelHours: 0.5, fuel: 6, consumables: 3, wear: 10, disposal: 12, minimumPreTax: 95 } },
+    { id: 'tidy', label: 'Garden tidy-up', example: { crew: 2, workHours: 3, travelHours: 0.5, fuel: 8, consumables: 5, wear: 14, disposal: 30, minimumPreTax: 180 } },
+    { id: 'leaves', label: 'Leaf clearance', example: { crew: 1, workHours: 2, travelHours: 0.5, fuel: 5, consumables: 4, wear: 8, disposal: 18, minimumPreTax: 85 } },
+    { id: 'other', label: 'Other lawn / garden job', example: { crew: 1, workHours: 2, travelHours: 0.5, fuel: 5, consumables: 3, wear: 8, disposal: 0, minimumPreTax: 75 } }
   ],
   directCostFields: [
     { id: 'fuel', label: 'Fuel / job', default: 5 },
