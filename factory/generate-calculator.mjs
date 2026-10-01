@@ -1,8 +1,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import lawnCare from './niches/lawn-care.js';
+import windowCleaning from './niches/window-cleaning.js';
+import carpetCleaning from './niches/carpet-cleaning.js';
+import handyman from './niches/handyman.js';
+import paintingDecorating from './niches/painting-decorating.js';
+import gutterCleaning from './niches/gutter-cleaning.js';
 
-const configs = [lawnCare];
+const configs = [lawnCare, windowCleaning, carpetCleaning, handyman, paintingDecorating, gutterCleaning];
 const root = process.cwd();
 
 function esc(value='') {
