@@ -96,7 +96,7 @@ export const nicheRegistry = [
     status: 'live',
     calculatorPath: '/gutter-cleaning-price-calculator/',
     freeUrl: 'https://payhip.com/b/P7zMQ',
-    proUrl: null,
+    proUrl: 'https://payhip.com/b/xulfN',
     proPrice: 24.99
   }
 ];
