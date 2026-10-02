@@ -1,5 +1,5 @@
 export default {
-  id:'painting_decorating',name:'Painting & Decorating',category:'Home & Property',slug:'painting-decorating-price-calculator',status:'pilot',
+  id:'painting_decorating',name:'Painting & Decorating',category:'Home & Property',slug:'painting-decorating-price-calculator',status:'live',
   seo:{title:'Painting & Decorating Price Calculator | Costs, Margin & Tax',description:'Free painting and decorating price calculator for labour, paint, sundries, travel, overhead, minimum charge, margin and tax.'},
   copy:{eyebrow:'PAINTING & DECORATING · FREE PRICING TOOL',headline:'Painting and decorating price calculator.',lead:'Build a quote from paid labour, paint and sundries, preparation, travel, equipment wear, overhead and retained margin.',resultEyebrow:'YOUR PAINTING JOB, COSTED'},
   jobTypes:[
@@ -11,5 +11,5 @@ export default {
   ],
   directCostFields:[{id:'paint',label:'Paint / coatings',default:55},{id:'sundries',label:'Tape / rollers / sheets / sundries',default:18},{id:'prep',label:'Preparation materials',default:15},{id:'wear',label:'Equipment wear / job',default:6}],
   defaults:{crew:1,workHours:6,travelHours:.5,wage:24,burden:12,distance:20,vehicleRate:.45,monthlyOverhead:1800,jobsMonth:28,fixedFee:.30,paymentFeeRate:2,reserveRate:4,targetMargin:32,minimumPreTax:250,taxRate:0},
-  products:{freeUrl:null,proUrl:null,proPrice:24.99}
+  products:{freeUrl:'https://payhip.com/b/FiAWG',proUrl:'https://payhip.com/b/ONKXy',proPrice:24.99}
 };
