@@ -1,5 +1,5 @@
 export default {
-  id:'window_cleaning',name:'Window Cleaning',category:'Home & Property',slug:'window-cleaning-price-calculator',status:'pilot',
+  id:'window_cleaning',name:'Window Cleaning',category:'Home & Property',slug:'window-cleaning-price-calculator',status:'live',
   seo:{title:'Window Cleaning Price Calculator | Costs, Margin & Tax',description:'Free window cleaning price calculator for labour, water, chemicals, equipment wear, travel, overhead, minimum charge, margin and tax.'},
   copy:{eyebrow:'WINDOW CLEANING · FREE PRICING TOOL',headline:'Window cleaning price calculator.',lead:'Build a quote from paid time, access difficulty, water and chemicals, equipment wear, travel, overhead and retained margin.',resultEyebrow:'YOUR WINDOW CLEANING JOB, COSTED'},
   jobTypes:[
@@ -11,5 +11,5 @@ export default {
   ],
   directCostFields:[{id:'chemicals',label:'Chemicals / job',default:4},{id:'water',label:'Water / job',default:3},{id:'wear',label:'Equipment wear / job',default:6},{id:'access',label:'Access / ladder / pole allowance',default:0}],
   defaults:{crew:1,workHours:2,travelHours:.5,wage:20,burden:12,distance:20,vehicleRate:.45,monthlyOverhead:1200,jobsMonth:75,fixedFee:.30,paymentFeeRate:2,reserveRate:3,targetMargin:30,minimumPreTax:60,taxRate:0},
-  products:{freeUrl:null,proUrl:null,proPrice:24.99}
+  products:{freeUrl:'https://payhip.com/b/2nIZu',proUrl:'https://payhip.com/b/n6Btv',proPrice:24.99}
 };
