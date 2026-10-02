@@ -1,5 +1,6 @@
 import { globalCountries, globalCurrencies, mergeCountries, populateCountrySelect, globalReviewed } from './global-locales.js';
 import { calculateServicePrice } from './pricing-engine.js';
+import { nicheById } from './niche-registry.js';
 
 const $ = id => document.getElementById(id);
 const configNode = $('niche-config');
@@ -15,6 +16,21 @@ function track(event, placement){
   try { window.dataLayer = window.dataLayer || []; window.dataLayer.push(detail); } catch {}
   try { window.dispatchEvent(new CustomEvent('calculator:conversion', { detail })); } catch {}
 }
+
+function wireCommercialResources(){
+  const niche = nicheById(config.id);
+  const block = document.querySelector('.result-toolkit');
+  if (!niche || !block) return;
+  const free = niche.freeUrl
+    ? `<a class="secondary button-link" href="${niche.freeUrl}" data-free-cta="results">Get the free pricing checklist ↗</a>`
+    : '<span class="coming">Free checklist being prepared</span>';
+  const paid = niche.proUrl
+    ? `<a class="primary button-link" href="${niche.proUrl}" data-paid-cta="results">Get the Pro Toolkit - €${Number(niche.proPrice || 24.99).toFixed(2)} ↗</a>`
+    : '<span class="coming">Pro toolkit being prepared</span>';
+  block.innerHTML = `<h3>${niche.name} pricing resources</h3><p>Use the free checklist for a quick cost review, then move into the Pro Toolkit for repeatable quoting and profit planning.</p>${free}${paid}`;
+}
+
+wireCommercialResources();
 
 const countries = mergeCountries();
 populateCountrySelect($('country'), countries, 'IE');
