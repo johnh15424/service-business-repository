@@ -1,5 +1,6 @@
 import { globalCountries, globalCurrencies, mergeCountries, populateCountrySelect, globalReviewed } from './global-locales.js';
 import { calculateServicePrice } from './pricing-engine.js';
+import { nicheById } from './niche-registry.js';
 
 const $ = id => document.getElementById(id);
 const node = $('niche-config');
@@ -11,9 +12,15 @@ if (!root) throw new Error('Missing calculator mount point.');
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const d = config.defaults;
 const directFields = config.directCostFields.map(f => `<div class="field"><label for="${esc(f.id)}">${esc(f.label)}</label><input id="${esc(f.id)}" type="number" min="0" step="any" value="${esc(f.default)}"></div>`).join('');
+const registryProduct = nicheById(config.id);
+const products = {
+  freeUrl: config.products?.freeUrl || registryProduct?.freeUrl || null,
+  proUrl: config.products?.proUrl || registryProduct?.proUrl || null,
+  proPrice: Number(config.products?.proPrice || registryProduct?.proPrice || 24.99)
+};
 const productBlock = (() => {
-  const free = config.products?.freeUrl ? `<a class="secondary button-link" href="${esc(config.products.freeUrl)}" data-free-cta="results">Get the free pricing checklist ↗</a>` : '<span class="coming">Free checklist being prepared</span>';
-  const pro = config.products?.proUrl ? `<a class="primary button-link" href="${esc(config.products.proUrl)}" data-paid-cta="results">Get the Pro Toolkit - €${Number(config.products.proPrice || 24.99).toFixed(2)} ↗</a>` : '<span class="coming">Pro toolkit being prepared</span>';
+  const free = products.freeUrl ? `<a class="secondary button-link" href="${esc(products.freeUrl)}" data-free-cta="results">Get the free pricing checklist ↗</a>` : '<span class="coming">Free checklist being prepared</span>';
+  const pro = products.proUrl ? `<a class="primary button-link" href="${esc(products.proUrl)}" data-paid-cta="results">Get the Pro Toolkit - €${products.proPrice.toFixed(2)} ↗</a>` : '<span class="coming">Pro toolkit being prepared</span>';
   return `<section class="result-toolkit"><h3>${esc(config.name)} pricing resources</h3><p>Use the free checklist for a quick cost review, then move into the Pro Toolkit for repeatable quoting and profit planning.</p>${free}${pro}</section>`;
 })();
 
