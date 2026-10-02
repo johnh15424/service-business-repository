@@ -3,7 +3,7 @@ export default {
   name: 'Lawn Care',
   category: 'Garden & Outdoor',
   slug: 'lawn-care-price-calculator',
-  status: 'pilot',
+  status: 'live',
   seo: {
     title: 'Lawn Care Price Calculator | Costs, Margin & Tax',
     description: 'Free lawn care price calculator for crew time, fuel, equipment wear, travel, overhead, minimum charge, margin and tax.'
@@ -45,8 +45,8 @@ export default {
     taxRate: 0
   },
   products: {
-    freeUrl: null,
-    proUrl: null,
+    freeUrl: 'https://payhip.com/b/r04ip',
+    proUrl: 'https://payhip.com/b/9UxTL',
     proPrice: 24.99
   }
 };
