@@ -111,16 +111,14 @@ export function populateCountrySelect(select,countries,preferred='IE'){
  select.value=countries[existing]?existing:(countries[preferred]?preferred:'OTHER');
 }
 
-// Progressive enhancement shared by old and factory calculators.
-// The calculator itself still decides whether tax is charged; this only supplies the suggested rate and clearer copy.
+// Progressive enhancement for factory calculators that do not have their own service-specific tax profile.
+// The calculator still decides whether tax is charged; this only supplies the suggested rate and clearer copy.
 function applySuggestedTax(){
  const country=document.getElementById('country');
  const taxRate=document.getElementById('taxRate');
- if(!country||!taxRate)return;
+ if(!country||!taxRate||document.getElementById('taxLabel'))return;
  const profile=globalCountries[country.value]||globalCountries.IE;
  if(profile && Number.isFinite(Number(profile.rate))) taxRate.value=profile.rate;
- const taxLabel=document.getElementById('taxLabel');
- if(taxLabel && profile?.tax) taxLabel.value=profile.tax;
  const label=document.querySelector('label[for="taxRate"]');
  if(label) label.textContent='Suggested tax rate (%)';
 }
