@@ -1,5 +1,5 @@
 export default {
-  id:'gutter_cleaning',name:'Gutter Cleaning',category:'Home & Property',slug:'gutter-cleaning-price-calculator',status:'pilot',
+  id:'gutter_cleaning',name:'Gutter Cleaning',category:'Home & Property',slug:'gutter-cleaning-price-calculator',status:'live',
   seo:{title:'Gutter Cleaning Price Calculator | Costs, Margin & Tax',description:'Free gutter cleaning price calculator for labour, access, disposal, travel, equipment wear, overhead, minimum charge, margin and tax.'},
   copy:{eyebrow:'GUTTER CLEANING · FREE PRICING TOOL',headline:'Gutter cleaning price calculator.',lead:'Build a quote from paid time, access difficulty, debris removal, equipment wear, travel, overhead and retained margin.',resultEyebrow:'YOUR GUTTER CLEANING JOB, COSTED'},
   jobTypes:[
@@ -11,5 +11,5 @@ export default {
   ],
   directCostFields:[{id:'disposal',label:'Debris / waste disposal',default:8},{id:'wear',label:'Vacuum / pole / ladder wear',default:8},{id:'access',label:'Access / height allowance',default:5},{id:'consumables',label:'Consumables / job',default:3}],
   defaults:{crew:1,workHours:2.5,travelHours:.5,wage:22,burden:12,distance:20,vehicleRate:.45,monthlyOverhead:1400,jobsMonth:55,fixedFee:.30,paymentFeeRate:2,reserveRate:4,targetMargin:32,minimumPreTax:100,taxRate:0},
-  products:{freeUrl:null,proUrl:null,proPrice:24.99}
+  products:{freeUrl:'https://payhip.com/b/P7zMQ',proUrl:null,proPrice:24.99}
 };
