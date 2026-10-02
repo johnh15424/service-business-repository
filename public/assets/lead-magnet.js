@@ -20,12 +20,36 @@ function bind(root=document){
   });
 }
 
-const directory=document.querySelector('#calculators .three-cards');
-if(directory && !directory.querySelector('[data-niche="mobile-detailing"]')){
-  const card=document.createElement('article');
-  card.dataset.niche='mobile-detailing';
-  card.innerHTML='<span>04 / LIVE</span><h3>Mobile Car Detailing</h3><p>Price detailing work from vehicle size and condition, door-to-door labour, chemicals, water, power, equipment wear, travel, overhead, fees, margin and tax.</p><a href="/mobile-car-detailing-price-calculator/">Open Mobile Detailing Calculator ↗</a>';
-  directory.append(card);
+const descriptions = {
+  dog_grooming: 'Price grooming appointments from service time, coat condition, labour, consumables, overhead, travel, fees, margin and tax.',
+  pressure_washing: 'Build a quote from crew-hours, area, chemicals, equipment wear, fuel, travel, overhead, minimum charge, margin and tax.',
+  house_cleaning: 'Price cleans from paid cleaner-hours, supplies, travel, overhead, minimum charge, fees, margin and tax.',
+  mobile_car_detailing: 'Price detailing from vehicle size and condition, labour, chemicals, water, power, equipment wear, travel, overhead, fees, margin and tax.',
+  lawn_care: 'Price mowing and garden work from crew-hours, fuel, machinery wear, disposal, travel, overhead, minimum charge and margin.',
+  window_cleaning: 'Price residential and commercial window cleaning from labour, water, chemicals, equipment wear, access, travel and overhead.',
+  carpet_cleaning: 'Price carpet cleaning from labour, chemicals, machine wear, water and power, spotting products, travel and overhead.',
+  handyman: 'Price repair and installation work from labour, materials, fixings, tool wear, travel, disposal, overhead and margin.',
+  painting_decorating: 'Price painting and decorating from labour, paint, sundries, preparation, equipment wear, travel, overhead and margin.',
+  gutter_cleaning: 'Price gutter cleaning from labour, access, debris disposal, equipment wear, travel, overhead, minimum charge and margin.'
+};
+
+async function buildDirectory(){
+  const directory = document.querySelector('#calculators .three-cards');
+  if (!directory) return;
+  try {
+    const { liveNiches } = await import('./niche-registry.js');
+    const niches = liveNiches();
+    niches.forEach((niche, index) => {
+      const exists = directory.querySelector(`a[href="${niche.calculatorPath}"]`);
+      if (exists) return;
+      const card = document.createElement('article');
+      card.dataset.niche = niche.id;
+      card.innerHTML = `<span>${String(index + 1).padStart(2,'0')} / ${niche.category.toUpperCase()}</span><h3>${niche.name}</h3><p>${descriptions[niche.id] || 'Build a quote from labour, direct job costs, travel, overhead, fees, margin and tax.'}</p><a href="${niche.calculatorPath}">Open ${niche.name} Calculator ↗</a>`;
+      directory.append(card);
+    });
+  } catch (error) {
+    console.warn('Calculator directory enhancement unavailable.', error);
+  }
 }
 
 const main=document.querySelector('main');
@@ -38,4 +62,5 @@ if(main && !document.getElementById('new-niche-products')){
   main.append(wrap);
 }
 
+buildDirectory();
 bind();
