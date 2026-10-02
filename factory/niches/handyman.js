@@ -1,5 +1,5 @@
 export default {
-  id:'handyman',name:'Handyman',category:'Home & Property',slug:'handyman-price-calculator',status:'pilot',
+  id:'handyman',name:'Handyman',category:'Home & Property',slug:'handyman-price-calculator',status:'live',
   seo:{title:'Handyman Price Calculator | Costs, Margin & Tax',description:'Free handyman price calculator for labour, materials, travel, overhead, minimum charge, margin and tax.'},
   copy:{eyebrow:'HANDYMAN · FREE PRICING TOOL',headline:'Handyman price calculator.',lead:'Build a quote from paid labour, materials, fixings, travel, tool wear, overhead and the retained margin the business needs.',resultEyebrow:'YOUR HANDYMAN JOB, COSTED'},
   jobTypes:[
@@ -11,5 +11,5 @@ export default {
   ],
   directCostFields:[{id:'materials',label:'Materials / job',default:20},{id:'fixings',label:'Fixings / consumables',default:6},{id:'wear',label:'Tool wear / job',default:6},{id:'disposal',label:'Waste / disposal',default:0}],
   defaults:{crew:1,workHours:2.5,travelHours:.5,wage:24,burden:12,distance:20,vehicleRate:.45,monthlyOverhead:1500,jobsMonth:50,fixedFee:.30,paymentFeeRate:2,reserveRate:4,targetMargin:32,minimumPreTax:100,taxRate:0},
-  products:{freeUrl:null,proUrl:null,proPrice:24.99}
+  products:{freeUrl:'https://payhip.com/b/24Kg8',proUrl:'https://payhip.com/b/UzWt0',proPrice:24.99}
 };
