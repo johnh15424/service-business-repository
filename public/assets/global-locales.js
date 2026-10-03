@@ -129,3 +129,30 @@ if(countrySelect){
  countrySelect.addEventListener('change',()=>setTimeout(applySuggestedTax,0));
  setTimeout(applySuggestedTax,0);
 }
+
+// Reusable embed mode for every calculator that imports this shared module.
+// ?embed=1 strips the surrounding site chrome so publishers can embed the working calculator cleanly.
+const pageParams=new URLSearchParams(window.location.search);
+const isEmbed=pageParams.get('embed')==='1';
+if(isEmbed){
+ document.body.classList.add('embed-mode');
+}else if(countrySelect){
+ const canonical=document.querySelector('link[rel="canonical"]')?.href || `${window.location.origin}${window.location.pathname}`;
+ const title=(document.querySelector('h1')?.textContent||document.title).replace(/\s+/g,' ').trim();
+ const embedUrl=`${canonical}${canonical.includes('?')?'&':'?'}embed=1`;
+ const iframe=`<iframe src="${embedUrl}" title="${title}" width="100%" height="980" loading="lazy" style="border:0;width:100%;max-width:1200px"></iframe>`;
+ const credit=`<p style="font:14px/1.5 sans-serif">Free ${title} by <a href="${canonical}">Service Pricing Tools</a></p>`;
+ const snippet=`${iframe}\n${credit}`;
+ const section=document.createElement('section');
+ section.className='embed-offer wrap';
+ section.innerHTML=`<p class="eyebrow">FREE EMBED</p><h2>Add this calculator to your website.</h2><p>Publishers, trainers and industry websites can embed this calculator free. The calculator stays hosted and updated by Service Pricing Tools.</p><label for="embed-code">Embed code</label><textarea id="embed-code" readonly rows="6"></textarea><div class="embed-actions"><button type="button" class="primary" id="copy-embed-code">Copy embed code</button><a class="secondary button-link" href="${embedUrl}" target="_blank" rel="noopener">Preview embedded calculator ↗</a></div><p class="micro">Please keep the Service Pricing Tools credit link in the embed code.</p>`;
+ const textarea=section.querySelector('textarea');
+ textarea.value=snippet;
+ const footer=document.querySelector('footer');
+ if(footer) footer.before(section); else document.body.append(section);
+ section.querySelector('#copy-embed-code').addEventListener('click',async e=>{
+  const button=e.currentTarget;
+  try{await navigator.clipboard.writeText(snippet);button.textContent='Embed code copied ✓';setTimeout(()=>button.textContent='Copy embed code',1800)}
+  catch{textarea.select();document.execCommand('copy');button.textContent='Embed code copied ✓';setTimeout(()=>button.textContent='Copy embed code',1800)}
+ });
+}
