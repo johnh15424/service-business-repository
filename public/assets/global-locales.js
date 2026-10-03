@@ -1,3 +1,5 @@
+import { nicheRegistry } from './niche-registry.js';
+
 // Shared localisation layer for Service Pricing Tools.
 // Currency and a reviewed tax reference can be prefilled. Tax stays OFF until the user confirms they charge it.
 // Service-specific calculator profiles override these defaults when a different reviewed treatment applies.
@@ -130,8 +132,6 @@ if(countrySelect){
  setTimeout(applySuggestedTax,0);
 }
 
-// Reusable embed mode for every calculator that imports this shared module.
-// ?embed=1 strips the surrounding site chrome so publishers can embed the working calculator cleanly.
 const pageParams=new URLSearchParams(window.location.search);
 const isEmbed=pageParams.get('embed')==='1';
 if(isEmbed){
@@ -143,6 +143,21 @@ if(isEmbed){
  const iframe=`<iframe src="${embedUrl}" title="${title}" width="100%" height="980" loading="lazy" style="border:0;width:100%;max-width:1200px"></iframe>`;
  const credit=`<p style="font:14px/1.5 sans-serif">Free ${title} by <a href="${canonical}">Service Pricing Tools</a></p>`;
  const snippet=`${iframe}\n${credit}`;
+
+ const current=nicheRegistry.find(n=>canonical.endsWith(n.calculatorPath));
+ if(current){
+  const sameCategory=nicheRegistry.filter(n=>n.status==='live'&&n.id!==current.id&&n.category===current.category);
+  const fallback=nicheRegistry.filter(n=>n.status==='live'&&n.id!==current.id&&!sameCategory.some(s=>s.id===n.id));
+  const related=[...sameCategory,...fallback].slice(0,3);
+  if(related.length){
+   const relatedSection=document.createElement('section');
+   relatedSection.className='related-calculators wrap';
+   relatedSection.innerHTML=`<p class="eyebrow">RELATED CALCULATORS</p><h2>More free pricing tools.</h2><div class="three-cards">${related.map((n,i)=>`<article><span>${String(i+1).padStart(2,'0')} / FREE TOOL</span><h3>${n.name}</h3><p>Build a price around the real costs of this service.</p><a href="${n.calculatorPath}">Open ${n.name} Calculator ↗</a></article>`).join('')}</div><p><a class="text-link" href="/calculators/">Browse all calculators ↗</a></p>`;
+   const footer=document.querySelector('footer');
+   if(footer) footer.before(relatedSection); else document.body.append(relatedSection);
+  }
+ }
+
  const section=document.createElement('section');
  section.className='embed-offer wrap';
  section.innerHTML=`<p class="eyebrow">FREE EMBED</p><h2>Add this calculator to your website.</h2><p>Publishers, trainers and industry websites can embed this calculator free. The calculator stays hosted and updated by Service Pricing Tools.</p><label for="embed-code">Embed code</label><textarea id="embed-code" readonly rows="6"></textarea><div class="embed-actions"><button type="button" class="primary" id="copy-embed-code">Copy embed code</button><a class="secondary button-link" href="${embedUrl}" target="_blank" rel="noopener">Preview embedded calculator ↗</a></div><p class="micro">Please keep the Service Pricing Tools credit link in the embed code.</p>`;
