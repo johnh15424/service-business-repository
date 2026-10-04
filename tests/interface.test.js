@@ -9,7 +9,11 @@ const source=readFileSync(new URL('../public/assets/app.js',import.meta.url),'ut
 function setup(t){
  const errors=[];const console=new VirtualConsole();console.on('jsdomError',e=>errors.push(e));
  const dom=new JSDOM(html,{url:'https://calculator.test/',runScripts:'outside-only',virtualConsole:console});
- Object.assign(dom.window,{calculate,numericKeys,countries,provinces,services,example,reviewed});
+ // app.js is eval'd after imports are stripped. The compact CTA module has its own focused
+ // regression coverage, so this legacy UI harness supplies the imported symbol without trying
+ // to reimplement or duplicate the module inside jsdom.
+ const mountCompactPaidCta=()=>null;
+ Object.assign(dom.window,{calculate,numericKeys,countries,provinces,services,example,reviewed,mountCompactPaidCta});
  dom.window.eval(source);const $=id=>dom.window.document.getElementById(id);
  const set=(id,value)=>{$(id).value=String(value);$(id).dispatchEvent(new dom.window.Event('change',{bubbles:true}));};
  const result=key=>dom.window.document.querySelector(`[data-result="${key}"]`).textContent;
