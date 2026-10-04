@@ -1,7 +1,7 @@
 export default {
   id:'handyman',name:'Handyman',category:'Home & Property',slug:'handyman-price-calculator',status:'live',
   seo:{title:'Handyman Price Calculator | Costs, Margin & Tax',description:'Free handyman price calculator for labour, materials, travel, overhead, minimum charge, margin and tax.'},
-  copy:{eyebrow:'HANDYMAN · FREE PRICING TOOL',headline:'Handyman price calculator.',lead:'Build a quote from paid labour, materials, fixings, travel, tool wear, overhead and the retained margin the business needs.',resultEyebrow:'YOUR HANDYMAN JOB, COSTED'},
+  copy:{eyebrow:'HANDYMAN · FREE PRICING TOOL',headline:'Handyman price calculator.',lead:'Build a quote from paid labour, materials, fixings, travel, tool wear, overhead and the retained margin the business needs.',resultEyebrow:'YOUR HANDYMAN JOB, COSTED',footerNote:'Planning support only. Review real costs, materials, scope, tax and local obligations before quoting.'},
   jobTypes:[
     {id:'small',label:'Small repair / fitting job',example:{crew:1,workHours:1.5,travelHours:.5,materials:12,fixings:4,wear:4,disposal:0,minimum:85}},
     {id:'halfday',label:'Half-day job',example:{crew:1,workHours:4,travelHours:.5,materials:30,fixings:8,wear:8,disposal:5,minimum:180}},

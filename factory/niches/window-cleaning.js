@@ -1,7 +1,7 @@
 export default {
   id:'window_cleaning',name:'Window Cleaning',category:'Home & Property',slug:'window-cleaning-price-calculator',status:'live',
   seo:{title:'Window Cleaning Price Calculator | Costs, Margin & Tax',description:'Free window cleaning price calculator for labour, water, chemicals, equipment wear, travel, overhead, minimum charge, margin and tax.'},
-  copy:{eyebrow:'WINDOW CLEANING · FREE PRICING TOOL',headline:'Window cleaning price calculator.',lead:'Build a quote from paid time, access difficulty, water and chemicals, equipment wear, travel, overhead and retained margin.',resultEyebrow:'YOUR WINDOW CLEANING JOB, COSTED'},
+  copy:{eyebrow:'WINDOW CLEANING · FREE PRICING TOOL',headline:'Window cleaning price calculator.',lead:'Build a quote from paid time, access difficulty, water and chemicals, equipment wear, travel, overhead and retained margin.',resultEyebrow:'YOUR WINDOW CLEANING JOB, COSTED',footerNote:'Planning support only. Review real costs, scope, tax, access and local obligations before quoting.'},
   jobTypes:[
     {id:'standard',label:'Standard residential clean',example:{crew:1,workHours:1.5,travelHours:.4,chemicals:3,water:2,wear:4,access:0,minimum:55}},
     {id:'large',label:'Large home / many panes',example:{crew:1,workHours:3,travelHours:.5,chemicals:5,water:3,wear:7,access:5,minimum:95}},

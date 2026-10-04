@@ -1,7 +1,7 @@
 export default {
   id:'gutter_cleaning',name:'Gutter Cleaning',category:'Home & Property',slug:'gutter-cleaning-price-calculator',status:'live',
   seo:{title:'Gutter Cleaning Price Calculator | Costs, Margin & Tax',description:'Free gutter cleaning price calculator for labour, access, disposal, travel, equipment wear, overhead, minimum charge, margin and tax.'},
-  copy:{eyebrow:'GUTTER CLEANING · FREE PRICING TOOL',headline:'Gutter cleaning price calculator.',lead:'Build a quote from paid time, access difficulty, debris removal, equipment wear, travel, overhead and retained margin.',resultEyebrow:'YOUR GUTTER CLEANING JOB, COSTED'},
+  copy:{eyebrow:'GUTTER CLEANING · FREE PRICING TOOL',headline:'Gutter cleaning price calculator.',lead:'Build a quote from paid time, access difficulty, debris removal, equipment wear, travel, overhead and retained margin.',resultEyebrow:'YOUR GUTTER CLEANING JOB, COSTED',footerNote:'Planning support only. Review real costs, access, safety, scope, tax and local obligations before quoting.'},
   jobTypes:[
     {id:'small',label:'Small single-storey home',example:{crew:1,workHours:1.5,travelHours:.5,disposal:5,wear:5,access:0,consumables:2,minimum:80}},
     {id:'standard',label:'Standard two-storey home',example:{crew:1,workHours:2.5,travelHours:.5,disposal:8,wear:8,access:10,consumables:3,minimum:120}},
