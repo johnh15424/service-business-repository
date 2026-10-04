@@ -1,6 +1,7 @@
 import { globalCountries, globalCurrencies, mergeCountries, populateCountrySelect, globalReviewed } from './global-locales.js';
 import { calculateServicePrice } from './pricing-engine.js';
 import { nicheById } from './niche-registry.js';
+import { mountCompactPaidCta } from './result-cta.js';
 
 const $ = id => document.getElementById(id);
 const configNode = $('niche-config');
@@ -169,6 +170,9 @@ $('apply-example').addEventListener('click', applyExample);
 $('reset').addEventListener('click', () => { form.reset(); $('country').value = 'IE'; setCountry(); applyExample(); });
 $('quick-estimate').addEventListener('click', () => track('estimate_jump_clicked', 'mobile'));
 document.querySelectorAll('[data-free-cta]').forEach(link => link.addEventListener('click', () => track('free_checklist_clicked', link.dataset.freeCta)));
+// Mount before the [data-paid-cta] scan below: querySelectorAll is not live, so the
+// compact CTA must exist before the runtime registers its click tracking.
+mountCompactPaidCta(config.id);
 document.querySelectorAll('[data-paid-cta]').forEach(link => link.addEventListener('click', () => track('paid_cta_clicked', link.dataset.paidCta)));
 track('calculator_viewed');
 setCountry();

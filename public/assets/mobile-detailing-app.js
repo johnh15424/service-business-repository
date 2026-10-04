@@ -1,4 +1,5 @@
 import {globalCountries,globalCurrencies,mergeCountries,populateCountrySelect,globalReviewed} from './global-locales.js';
+import { mountCompactPaidCta } from './result-cta.js';
 const $=id=>document.getElementById(id),form=$('detailing-calculator');
 const reviewed={IE:{name:'Ireland',currency:'EUR',tax:'VAT',rate:23,note:'Standard VAT reference only. Confirm registration and the exact treatment of your detailing service.',url:'https://www.revenue.ie/en/vat/vat-rates/search-vat-rates/current-VAT-rates.aspx',source:'Revenue'},GB:{name:'United Kingdom',currency:'GBP',tax:'VAT',rate:20,note:'Standard VAT reference only. Confirm registration and service treatment.',url:'https://www.gov.uk/vat-rates',source:'HMRC'},AU:{name:'Australia',currency:'AUD',tax:'GST',rate:10,note:'Standard GST reference only. Confirm registration and taxable treatment.',url:'https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst',source:'ATO'},NZ:{name:'New Zealand',currency:'NZD',tax:'GST',rate:15,note:'Standard GST reference only. Confirm registration and taxable treatment.',url:'https://www.ird.govt.nz/gst/charging-gst',source:'Inland Revenue'}};
 const countries=mergeCountries(reviewed);populateCountrySelect($('country'),countries,'IE');
@@ -15,5 +16,8 @@ form.addEventListener('input',run);form.addEventListener('change',e=>{if(e.targe
 const toolkit=document.querySelector('.result-toolkit');
 if(toolkit){toolkit.innerHTML='<p class="eyebrow">NEXT STEP</p><h3>Turn this estimate into a repeatable detailing pricing system</h3><p>The €24.99 Mobile Car Detailing Pricing Calculator & Profit Toolkit takes the model beyond one quote with reusable job costing, service examples and monthly profit planning.</p><a class="primary button-link" href="https://payhip.com/b/6w2cQ" data-paid-cta="results">Get the Mobile Car Detailing Pro Toolkit - €24.99 ↗</a><p class="micro">Not ready for the full toolkit? Keep using this calculator free or save the checklist for later.</p><a class="secondary button-link" href="https://payhip.com/b/L4SPu" data-free-cta="results">Download the free pricing checklist ↗</a><p class="micro">Digital downloads delivered through Payhip.</p>';}
 document.querySelectorAll('[data-free-cta]').forEach(link=>link.addEventListener('click',()=>track('free_checklist_clicked',link.dataset.freeCta)));
+// Mount before the [data-paid-cta] scan below: querySelectorAll is not live, so the
+// compact CTA must exist before the runtime registers its click tracking.
+mountCompactPaidCta('mobile_car_detailing');
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');setCountry();example();

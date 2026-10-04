@@ -1,4 +1,5 @@
 import {countries,provinces,currencies,jobs,reviewed} from './pressure-profiles.js';
+import { mountCompactPaidCta } from './result-cta.js';
 const $=id=>document.getElementById(id);
 const form=$('pressure-calculator');
 const fields=['area','crew','workHours','setupHours','travelHours','wage','burden','chemicals','utilities','wear','fuel','distance','vehicleRate','overhead','jobsMonth','fixedFee','fee','reserve','margin','minimum','taxRate'];
@@ -79,6 +80,9 @@ $('reset').addEventListener('click',()=>{form.reset();$('province').value='AB';s
 $('quick-estimate').addEventListener('click',()=>{trackCompletion();track('estimate_jump_clicked','mobile')});
 enforcePaidFirst();
 document.querySelectorAll('[data-free-cta]').forEach(link=>link.addEventListener('click',()=>track('free_checklist_clicked',link.dataset.freeCta)));
+// Mount before the [data-paid-cta] scan below: querySelectorAll is not live, so the
+// compact CTA must exist before the runtime registers its click tracking.
+mountCompactPaidCta('pressure_washing');
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');
 setCountry();applyExample();

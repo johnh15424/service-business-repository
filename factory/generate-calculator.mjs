@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { renderDirectory } from './directory.mjs';
 import windowCleaning from './niches/window-cleaning.js';
 import carpetCleaning from './niches/carpet-cleaning.js';
 import handyman from './niches/handyman.js';
@@ -56,6 +57,10 @@ export async function writePages() {
     await fs.writeFile(path.join(directory, 'index.html'), renderPage(config));
     console.log(`generated ${config.slug}`);
   }
+  const directoryDir = path.join(root, 'public', 'calculators');
+  await fs.mkdir(directoryDir, { recursive: true });
+  await fs.writeFile(path.join(directoryDir, 'index.html'), renderDirectory());
+  console.log('generated calculators directory');
 }
 
 // Only write when run directly (npm run generate). Importing this module — as the drift test
