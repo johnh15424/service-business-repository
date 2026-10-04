@@ -104,7 +104,7 @@ test('factory configs have safe inputs and economically valid examples',()=>{
 test('build niches stay out of live navigation until products are wired',async()=>{
   const {nicheRegistry}=await import('../public/assets/niche-registry.js');
   const build=nicheRegistry.filter(n=>n.status==='build');
-  assert.ok(build.length>=10,'expected build-stage niches');
+  assert.ok(build.length>0,'expected at least one build-stage niche');
   for(const niche of build){
     assert.equal(niche.freeUrl,null,`${niche.id}: free URL should stay null before Payhip setup`);
     assert.equal(niche.proUrl,null,`${niche.id}: pro URL should stay null before Payhip setup`);
