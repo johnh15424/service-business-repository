@@ -19,9 +19,9 @@ const products = {
   proPrice: Number(config.products?.proPrice || registryProduct?.proPrice || 24.99)
 };
 const productBlock = (() => {
-  const free = products.freeUrl ? `<a class="secondary button-link" href="${esc(products.freeUrl)}" data-free-cta="results">Get the free pricing checklist ↗</a>` : '<span class="coming">Free checklist being prepared</span>';
-  const pro = products.proUrl ? `<a class="primary button-link" href="${esc(products.proUrl)}" data-paid-cta="results">Get the Pro Toolkit - €${products.proPrice.toFixed(2)} ↗</a>` : '<span class="coming">Pro toolkit being prepared</span>';
-  return `<section class="result-toolkit"><h3>${esc(config.name)} pricing resources</h3><p>Use the free checklist for a quick cost review, then move into the Pro Toolkit for repeatable quoting and profit planning.</p>${free}${pro}</section>`;
+  const pro = products.proUrl ? `<a class="primary button-link" href="${esc(products.proUrl)}" data-paid-cta="results">Get the ${esc(config.name)} Pro Toolkit - €${products.proPrice.toFixed(2)} ↗</a>` : '<span class="coming">Pro toolkit being prepared</span>';
+  const free = products.freeUrl ? `<a class="secondary button-link" href="${esc(products.freeUrl)}" data-free-cta="results">Download the free pricing checklist ↗</a>` : '<span class="coming">Free checklist being prepared</span>';
+  return `<section class="result-toolkit"><p class="eyebrow">NEXT STEP</p><h3>Turn this estimate into a repeatable pricing system</h3><p>The €${products.proPrice.toFixed(2)} ${esc(config.name)} Pricing Calculator & Profit Toolkit is the full working version for repeatable job costing, pricing reviews and monthly profit planning.</p>${pro}<p class="micro">Not ready for the full toolkit? Keep using this calculator free or save the checklist for later.</p>${free}</section>`;
 })();
 
 root.innerHTML = `<div class="calculator-layout"><form id="generated-calculator" novalidate><div class="form-top"><h2>Build your job</h2><span>Editable assumptions</span></div>
