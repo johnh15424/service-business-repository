@@ -1,0 +1,33 @@
+name: Calculator QA
+
+on:
+  pull_request:
+    branches:
+      - main
+      - commercial-funnel-v1
+  push:
+    branches:
+      - main
+      - commercial-funnel-v1
+      - next-10-niches-v1
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax checks
+        run: npm run check
+      - name: Test calculators
+        run: npm test
