@@ -115,8 +115,8 @@ export const nicheRegistry = [
     category: 'Home & Property',
     status: 'build',
     calculatorPath: '/solar-panel-cleaning-price-calculator/',
-    freeUrl: null,
-    proUrl: null,
+    freeUrl: 'https://payhip.com/b/m06BC',
+    proUrl: 'https://payhip.com/b/p194s',
     proPrice: 24.99
   },
   {
@@ -125,8 +125,8 @@ export const nicheRegistry = [
     category: 'Home & Property',
     status: 'build',
     calculatorPath: '/oven-cleaning-price-calculator/',
-    freeUrl: null,
-    proUrl: null,
+    freeUrl: 'https://payhip.com/b/yOIpj',
+    proUrl: 'https://payhip.com/b/QIqfR',
     proPrice: 24.99
   },
   {
@@ -135,8 +135,8 @@ export const nicheRegistry = [
     category: 'Pet Services',
     status: 'build',
     calculatorPath: '/pet-waste-removal-price-calculator/',
-    freeUrl: null,
-    proUrl: null,
+    freeUrl: 'https://payhip.com/b/AQBTM',
+    proUrl: 'https://payhip.com/b/5zCGX',
     proPrice: 24.99
   },
   {
@@ -145,8 +145,8 @@ export const nicheRegistry = [
     category: 'Home & Property',
     status: 'build',
     calculatorPath: '/pool-cleaning-price-calculator/',
-    freeUrl: null,
-    proUrl: null,
+    freeUrl: 'https://payhip.com/b/jGNuU',
+    proUrl: 'https://payhip.com/b/GmK25',
     proPrice: 24.99
   },
   {
@@ -155,8 +155,8 @@ export const nicheRegistry = [
     category: 'Home & Property',
     status: 'build',
     calculatorPath: '/junk-removal-price-calculator/',
-    freeUrl: null,
-    proUrl: null,
+    freeUrl: 'https://payhip.com/b/NyA6B',
+    proUrl: 'https://payhip.com/b/FNASL',
     proPrice: 24.99
   },
   {
@@ -165,8 +165,8 @@ export const nicheRegistry = [
     category: 'Pet Services',
     status: 'build',
     calculatorPath: '/dog-walking-price-calculator/',
-    freeUrl: null,
-    proUrl: null,
+    freeUrl: 'https://payhip.com/b/O4bv7',
+    proUrl: 'https://payhip.com/b/5E69G',
     proPrice: 24.99
   },
   {
@@ -175,8 +175,8 @@ export const nicheRegistry = [
     category: 'Pet Services',
     status: 'build',
     calculatorPath: '/pet-sitting-price-calculator/',
-    freeUrl: null,
-    proUrl: null,
+    freeUrl: 'https://payhip.com/b/okh6N',
+    proUrl: 'https://payhip.com/b/eaQX5',
     proPrice: 24.99
   },
   {
