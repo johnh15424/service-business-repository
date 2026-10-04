@@ -108,6 +108,113 @@ export const nicheRegistry = [
     freeUrl: 'https://payhip.com/b/P7zMQ',
     proUrl: 'https://payhip.com/b/xulfN',
     proPrice: 24.99
+  },
+  {
+    id: 'solar_panel_cleaning',
+    name: 'Solar Panel Cleaning',
+    category: 'Home & Property',
+    directoryDescription: 'Price solar panel cleaning from labour, travel, purified water or materials, access, equipment wear, overhead and margin.',
+    status: 'live',
+    calculatorPath: '/solar-panel-cleaning-price-calculator/',
+    freeUrl: 'https://payhip.com/b/m06BC',
+    proUrl: 'https://payhip.com/b/p194s',
+    proPrice: 24.99
+  },
+  {
+    id: 'oven_cleaning',
+    name: 'Oven Cleaning',
+    category: 'Home & Property',
+    directoryDescription: 'Price oven cleaning from labour, travel, chemicals, consumables, appliance condition, equipment wear, overhead and margin.',
+    status: 'live',
+    calculatorPath: '/oven-cleaning-price-calculator/',
+    freeUrl: 'https://payhip.com/b/yOIpj',
+    proUrl: 'https://payhip.com/b/QIqfR',
+    proPrice: 24.99
+  },
+  {
+    id: 'pet_waste_removal',
+    name: 'Pet Waste Removal',
+    category: 'Pet Services',
+    directoryDescription: 'Price recurring and one-off pet waste removal from labour, route density, travel, disposal, supplies, overhead and margin.',
+    status: 'live',
+    calculatorPath: '/pet-waste-removal-price-calculator/',
+    freeUrl: 'https://payhip.com/b/AQBTM',
+    proUrl: 'https://payhip.com/b/5zCGX',
+    proPrice: 24.99
+  },
+  {
+    id: 'pool_cleaning',
+    name: 'Pool Cleaning',
+    category: 'Home & Property',
+    directoryDescription: 'Price pool cleaning and maintenance from labour, travel, chemicals, testing supplies, equipment wear, overhead and margin.',
+    status: 'live',
+    calculatorPath: '/pool-cleaning-price-calculator/',
+    freeUrl: 'https://payhip.com/b/jGNuU',
+    proUrl: 'https://payhip.com/b/GmK25',
+    proPrice: 24.99
+  },
+  {
+    id: 'junk_removal',
+    name: 'Junk Removal',
+    category: 'Home & Property',
+    directoryDescription: 'Price junk removal from crew-hours, vehicle cost, disposal fees, load size, access, overhead, minimum charge and margin.',
+    status: 'live',
+    calculatorPath: '/junk-removal-price-calculator/',
+    freeUrl: 'https://payhip.com/b/NyA6B',
+    proUrl: 'https://payhip.com/b/FNASL',
+    proPrice: 24.99
+  },
+  {
+    id: 'dog_walking',
+    name: 'Dog Walking',
+    category: 'Pet Services',
+    directoryDescription: 'Price dog walking from paid service time, travel, route density, equipment, cancellations, overhead, fees and margin.',
+    status: 'live',
+    calculatorPath: '/dog-walking-price-calculator/',
+    freeUrl: 'https://payhip.com/b/O4bv7',
+    proUrl: 'https://payhip.com/b/5E69G',
+    proPrice: 24.99
+  },
+  {
+    id: 'pet_sitting',
+    name: 'Pet Sitting',
+    category: 'Pet Services',
+    directoryDescription: 'Price pet sitting from visit time, travel, key handling, special-care requirements, overnight capacity, overhead and margin.',
+    status: 'live',
+    calculatorPath: '/pet-sitting-price-calculator/',
+    freeUrl: 'https://payhip.com/b/okh6N',
+    proUrl: 'https://payhip.com/b/eaQX5',
+    proPrice: 24.99
+  },
+  {
+    id: 'dryer_vent_cleaning',
+    name: 'Dryer Vent Cleaning',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/dryer-vent-cleaning-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'upholstery_cleaning',
+    name: 'Upholstery Cleaning',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/upholstery-cleaning-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'mobile_tyre_service',
+    name: 'Mobile Tyre Service',
+    category: 'Automotive',
+    status: 'build',
+    calculatorPath: '/mobile-tyre-service-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
   }
 ];
 
