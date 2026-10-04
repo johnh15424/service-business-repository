@@ -1,4 +1,5 @@
 import {countries,provinces,currencies,jobs,reviewed} from './house-cleaning-profiles.js';
+import { mountCompactPaidCta } from './result-cta.js';
 const $=id=>document.getElementById(id);
 const form=$('cleaning-calculator');
 const fields=['cleaners','workHours','travelHours','wage','burden','supplies','laundry','equipment','distance','vehicleRate','overhead','jobsMonth','fixedFee','fee','reserve','margin','minimum','taxRate'];
@@ -75,6 +76,9 @@ $('quick-estimate').addEventListener('click',()=>{trackCompletion();track('estim
 const toolkit=document.querySelector('.result-toolkit');
 if(toolkit){toolkit.innerHTML='<p class="eyebrow">NEXT STEP</p><h3>Turn this estimate into a repeatable house-cleaning pricing system</h3><p>The €24.99 House Cleaning Pricing Calculator & Profit Toolkit takes the model beyond one quote with reusable job costing, service examples and monthly profit planning.</p><a class="primary button-link" href="https://payhip.com/b/9rEyJ" data-paid-cta="results">Get the House Cleaning Pro Toolkit - €24.99 ↗</a><p class="micro">Not ready for the full toolkit? Keep using this calculator free or save the checklist for later.</p><a class="secondary button-link" href="https://payhip.com/b/Q5fPh" data-free-cta="results">Download the free pricing checklist ↗</a><p class="micro">Digital downloads delivered through Payhip.</p>';}
 document.querySelectorAll('[data-free-cta]').forEach(link=>link.addEventListener('click',()=>track('free_checklist_clicked',link.dataset.freeCta)));
+// Mount before the [data-paid-cta] scan below: querySelectorAll is not live, so the
+// compact CTA must exist before the runtime registers its click tracking.
+mountCompactPaidCta('house_cleaning');
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');
 setCountry();applyExample();
