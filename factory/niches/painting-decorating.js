@@ -1,7 +1,7 @@
 export default {
   id:'painting_decorating',name:'Painting & Decorating',category:'Home & Property',slug:'painting-decorating-price-calculator',status:'live',
   seo:{title:'Painting & Decorating Price Calculator | Costs, Margin & Tax',description:'Free painting and decorating price calculator for labour, paint, sundries, travel, overhead, minimum charge, margin and tax.'},
-  copy:{eyebrow:'PAINTING & DECORATING · FREE PRICING TOOL',headline:'Painting and decorating price calculator.',lead:'Build a quote from paid labour, paint and sundries, preparation, travel, equipment wear, overhead and retained margin.',resultEyebrow:'YOUR PAINTING JOB, COSTED'},
+  copy:{eyebrow:'PAINTING & DECORATING · FREE PRICING TOOL',headline:'Painting and decorating price calculator.',lead:'Build a quote from paid labour, paint and sundries, preparation, travel, equipment wear, overhead and retained margin.',resultEyebrow:'YOUR PAINTING JOB, COSTED',footerNote:'Planning support only. Review real costs, preparation, scope, tax and local obligations before quoting.'},
   jobTypes:[
     {id:'room',label:'Single room repaint',example:{crew:1,workHours:8,travelHours:.5,paint:70,sundries:20,prep:15,wear:8,minimum:350}},
     {id:'feature',label:'Feature wall / small area',example:{crew:1,workHours:3,travelHours:.5,paint:25,sundries:10,prep:8,wear:4,minimum:150}},
