@@ -98,6 +98,106 @@ export const nicheRegistry = [
     freeUrl: 'https://payhip.com/b/P7zMQ',
     proUrl: 'https://payhip.com/b/xulfN',
     proPrice: 24.99
+  },
+  {
+    id: 'solar_panel_cleaning',
+    name: 'Solar Panel Cleaning',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/solar-panel-cleaning-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'oven_cleaning',
+    name: 'Oven Cleaning',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/oven-cleaning-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'pet_waste_removal',
+    name: 'Pet Waste Removal',
+    category: 'Pet Services',
+    status: 'build',
+    calculatorPath: '/pet-waste-removal-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'pool_cleaning',
+    name: 'Pool Cleaning',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/pool-cleaning-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'junk_removal',
+    name: 'Junk Removal',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/junk-removal-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'dog_walking',
+    name: 'Dog Walking',
+    category: 'Pet Services',
+    status: 'build',
+    calculatorPath: '/dog-walking-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'pet_sitting',
+    name: 'Pet Sitting',
+    category: 'Pet Services',
+    status: 'build',
+    calculatorPath: '/pet-sitting-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'dryer_vent_cleaning',
+    name: 'Dryer Vent Cleaning',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/dryer-vent-cleaning-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'upholstery_cleaning',
+    name: 'Upholstery Cleaning',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/upholstery-cleaning-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'mobile_tyre_service',
+    name: 'Mobile Tyre Service',
+    category: 'Automotive',
+    status: 'build',
+    calculatorPath: '/mobile-tyre-service-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
   }
 ];
 
