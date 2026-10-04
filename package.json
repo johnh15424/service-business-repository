@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check public/assets/app.js && node --check public/assets/pricing.js && node --check public/assets/pricing-engine.js && node --check public/assets/generated-calculator.js && node --check factory/generate-calculator.mjs",
+    "check": "node --check public/assets/app.js && node --check public/assets/pricing.js && node --check public/assets/pricing-engine.js && node --check public/assets/generated-calculator.js && node --check public/assets/factory-calculator.js && node --check public/assets/commercial-funnel.js && node --check factory/generate-calculator.mjs",
     "generate": "node factory/generate-calculator.mjs",
     "preview": "python3 -m http.server 8080 --directory public"
   },
