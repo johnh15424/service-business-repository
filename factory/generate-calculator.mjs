@@ -1,43 +1,65 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import lawnCare from './niches/lawn-care.js';
+import { pathToFileURL } from 'node:url';
 import windowCleaning from './niches/window-cleaning.js';
 import carpetCleaning from './niches/carpet-cleaning.js';
 import handyman from './niches/handyman.js';
 import paintingDecorating from './niches/painting-decorating.js';
 import gutterCleaning from './niches/gutter-cleaning.js';
 
-const configs = [lawnCare, windowCleaning, carpetCleaning, handyman, paintingDecorating, gutterCleaning];
+// Factory niches only. These pages mount #factory-root and are driven at runtime by
+// /assets/factory-calculator.js, which renders the form, the results and the paid-first
+// commercial block from the embedded niche-config plus niche-registry.js.
+//
+// Pages served by a legacy runtime (dog grooming, house cleaning, lawn care, mobile car
+// detailing, pressure washing) are hand-maintained and deliberately NOT generated here.
+export const factoryConfigs = [windowCleaning, carpetCleaning, handyman, paintingDecorating, gutterCleaning];
 const root = process.cwd();
 
-function esc(value='') {
-  return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Config-authored copy is emitted as written so generated pages stay byte-identical to the
+// committed ones (titles and eyebrows contain bare "&"). Keep config strings free of markup.
+const raw = (value = '') => String(value);
+
+// The embedded config is deliberately a subset: no seo/status block, and products are null so
+// factory-calculator.js resolves the live Payhip URLs from niche-registry.js instead.
+function runtimeConfig(config) {
+  return {
+    id: config.id,
+    name: config.name,
+    category: config.category,
+    slug: config.slug,
+    copy: { resultEyebrow: config.copy.resultEyebrow },
+    jobTypes: config.jobTypes,
+    directCostFields: config.directCostFields,
+    defaults: config.defaults,
+    products: { freeUrl: null, proUrl: null, proPrice: config.products.proPrice }
+  };
 }
 
-function field(input) {
-  return `<div class="field"><label for="${esc(input.id)}">${esc(input.label)}</label><input id="${esc(input.id)}" type="number" min="0" step="any" value="${esc(input.default)}"></div>`;
+export function renderPage(config) {
+  const json = JSON.stringify(runtimeConfig(config)).replace(/</g, '\\u003c');
+  const headlineLead = config.copy.headline.replace(/\s*price calculator\.$/i, '');
+  return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${raw(config.seo.title)}</title><meta name="description" content="${raw(config.seo.description)}"><link rel="canonical" href="https://servicepricingtools.com/${raw(config.slug)}/"><link rel="icon" href="/assets/paw.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/styles.css"></head><body><header><nav class="wrap nav"><a class="brand" href="/"><img src="/assets/paw.svg" alt="" width="32" height="32">Service Pricing <span>Tools</span></a><div><a href="/#calculators">Calculators</a><a href="/#resources">Resources</a></div></nav></header><a href="#estimate" id="quick-estimate" class="quick-estimate">View estimate</a><main><section class="wrap hero"><p class="eyebrow">${raw(config.copy.eyebrow)}</p><h1>${raw(headlineLead)}<br><em>price calculator.</em></h1><p class="lead">${raw(config.copy.lead)}</p></section><div id="factory-root" class="wrap"></div></main><script id="niche-config" type="application/json">${json}</script><script type="module" src="/assets/factory-calculator.js"></script><footer class="wrap footer"><a class="brand" href="/">Service Pricing Tools</a><p>${raw(config.copy.footerNote)}</p></footer></body></html>`;
 }
 
-function productBlock(config) {
-  const free = config.products.freeUrl
-    ? `<a class="secondary button-link" href="${esc(config.products.freeUrl)}" data-free-cta="results">Get the free pricing checklist ↗</a>`
-    : '<span class="coming">Free checklist being prepared</span>';
-  const pro = config.products.proUrl
-    ? `<a class="primary button-link" href="${esc(config.products.proUrl)}" data-paid-cta="results">Get the Pro Toolkit - €${config.products.proPrice.toFixed(2)} ↗</a>`
-    : '<span class="coming">Pro toolkit being prepared</span>';
-  return `<section class="result-toolkit"><h3>${esc(config.name)} pricing resources</h3><p>Use the free checklist for a quick cost review, then move into the Pro Toolkit for repeatable quoting and profit planning.</p>${free}${pro}</section>`;
+// Niches the generator will actually write, in generation order.
+export const generatedNiches = () => factoryConfigs.filter(config => config.status === 'live');
+
+export async function writePages() {
+  for (const config of factoryConfigs) {
+    if (config.status !== 'live') {
+      console.log(`skipped ${config.slug} (status: ${config.status})`);
+      continue;
+    }
+    const directory = path.join(root, 'public', config.slug);
+    await fs.mkdir(directory, { recursive: true });
+    await fs.writeFile(path.join(directory, 'index.html'), renderPage(config));
+    console.log(`generated ${config.slug}`);
+  }
 }
 
-function page(config) {
-  const directFields = config.directCostFields.map(field).join('');
-  const d = config.defaults;
-  const json = JSON.stringify(config).replace(/</g, '\\u003c');
-  return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#153f38"><title>${esc(config.seo.title)}</title><meta name="description" content="${esc(config.seo.description)}"><link rel="canonical" href="https://servicepricingtools.com/${esc(config.slug)}/"><link rel="icon" href="/assets/paw.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/styles.css"></head><body><a class="skip" href="#main">Skip to content</a><header><nav class="wrap nav"><a class="brand" href="/"><img src="/assets/paw.svg" alt="" width="32" height="32">Service Pricing <span>Tools</span></a><div><a href="/#calculators">Calculators</a><a href="/#resources">Resources</a></div></nav></header><a href="#estimate" id="quick-estimate" class="quick-estimate">View estimate</a><main id="main"><section class="wrap hero"><p class="eyebrow">${esc(config.copy.eyebrow)}</p><h1>${esc(config.copy.headline)}</h1><p class="lead">${esc(config.copy.lead)}</p></section><div class="wrap calculator-layout"><form id="generated-calculator" novalidate><div class="form-top"><h2>Build your job</h2><span>Editable assumptions</span></div><details class="input-section" open><summary><span class="step">01</span><span><strong>Country, currency & tax</strong><small>Currency can be loaded automatically. Tax stays editable and off by default.</small></span><span class="chevron">+</span></summary><div class="section-body"><div class="fields"><div class="field"><label for="country">Country / region</label><select id="country"></select></div><div class="field"><label for="currency">Currency</label><select id="currency"></select></div><div class="field" id="custom-currency-field" hidden><label for="customCurrency">Three-letter currency code</label><input id="customCurrency" value="EUR" maxlength="3"></div><div class="field"><label for="chargeTax">Charge tax?</label><select id="chargeTax"><option value="no">No</option><option value="yes">Yes</option></select></div><div class="field"><label for="taxRate">Tax rate (%)</label><input id="taxRate" type="number" min="0" max="100" step="any" value="${d.taxRate}"></div></div><p id="tax-note" class="tax-note"></p></div></details><details class="input-section" open><summary><span class="step">02</span><span><strong>Job & paid time</strong><small>Choose a service and count the real paid hours.</small></span><span class="chevron">+</span></summary><div class="section-body"><div class="fields"><div class="field"><label for="jobType">Job type</label><select id="jobType"></select></div><div class="field"><label for="crew">Crew size</label><input id="crew" type="number" min="1" step="1" value="${d.crew}"></div><div class="field"><label for="workHours">On-site hours</label><input id="workHours" type="number" min="0" step="any" value="${d.workHours}"></div><div class="field"><label for="travelHours">Paid travel hours</label><input id="travelHours" type="number" min="0" step="any" value="${d.travelHours}"></div><div class="field"><label for="wage">Labour cost / hour</label><input id="wage" type="number" min="0" step="any" value="${d.wage}"></div><div class="field"><label for="burden">Employer on-costs (%)</label><input id="burden" type="number" min="0" max="100" step="any" value="${d.burden}"></div></div><button type="button" class="secondary" id="apply-example">Apply example for this job</button></div></details><details class="input-section" open><summary><span class="step">03</span><span><strong>Direct job costs</strong><small>Recover the consumables and equipment costs created by this job.</small></span><span class="chevron">+</span></summary><div class="section-body"><div class="fields">${directFields}</div></div></details><details class="input-section"><summary><span class="step">04</span><span><strong>Travel, overhead & margin</strong><small>Recover business overhead and protect the required margin.</small></span><span class="chevron">+</span></summary><div class="section-body"><div class="fields"><div class="field"><label for="distance">Round-trip distance</label><input id="distance" type="number" min="0" step="any" value="${d.distance}"></div><div class="field"><label for="vehicleRate">Vehicle cost / distance unit</label><input id="vehicleRate" type="number" min="0" step="any" value="${d.vehicleRate}"></div><div class="field"><label for="monthlyOverhead">Monthly fixed overhead</label><input id="monthlyOverhead" type="number" min="0" step="any" value="${d.monthlyOverhead}"></div><div class="field"><label for="jobsMonth">Expected paid jobs / month</label><input id="jobsMonth" type="number" min="0.01" step="any" value="${d.jobsMonth}"></div><div class="field"><label for="fixedFee">Fixed transaction fee</label><input id="fixedFee" type="number" min="0" step="any" value="${d.fixedFee}"></div><div class="field"><label for="paymentFeeRate">Payment fee (%)</label><input id="paymentFeeRate" type="number" min="0" max="99" step="any" value="${d.paymentFeeRate}"></div><div class="field"><label for="reserveRate">Contingency reserve (%)</label><input id="reserveRate" type="number" min="0" max="99" step="any" value="${d.reserveRate}"></div><div class="field"><label for="targetMargin">Target retained margin (%)</label><input id="targetMargin" type="number" min="0" max="99" step="any" value="${d.targetMargin}"></div><div class="field"><label for="minimumPreTax">Minimum pre-tax charge</label><input id="minimumPreTax" type="number" min="0" step="any" value="${d.minimumPreTax}"></div></div></div></details><div class="form-actions"><button class="primary" type="submit">Calculate this job ↗</button><button type="button" class="text-button" id="reset">Reset example</button></div></form><aside id="estimate" class="estimate" tabindex="-1"><div class="estimate-top"><p class="eyebrow">${esc(config.copy.resultEyebrow)}</p><h2>Recommended customer total</h2><div class="hero-price" data-result="hero">—</div><p id="tax-summary"></p></div><div class="estimate-body"><div id="errors" class="warning" hidden></div><p id="minimum-note" class="advice"></p><dl class="results"><div class="result-row"><dt>Paid labour hours</dt><dd data-result="labourHours">—</dd></div><div class="result-row"><dt>Labour cost</dt><dd data-result="labourCost">—</dd></div><div class="result-row"><dt>Direct job costs</dt><dd data-result="directCosts">—</dd></div><div class="result-row"><dt>Travel cost</dt><dd data-result="travelCost">—</dd></div><div class="result-row"><dt>Allocated overhead</dt><dd data-result="overhead">—</dd></div><div class="result-row"><dt>Recommended pre-tax price</dt><dd data-result="preTax">—</dd></div><div class="result-row"><dt>Tax</dt><dd data-result="tax">—</dd></div><div class="result-row"><dt>Retained profit</dt><dd data-result="retained">—</dd></div><div class="result-row"><dt>Retained margin</dt><dd data-result="margin">—</dd></div></dl>${productBlock(config)}<p id="status" class="micro" role="status" aria-live="polite"></p></div></aside></div></main><script id="niche-config" type="application/json">${json}</script><script type="module" src="/assets/generated-calculator.js"></script><footer class="wrap footer"><a class="brand" href="/">Service Pricing Tools</a><p>Planning support only. Review real costs, scope, tax and local obligations before quoting.</p></footer></body></html>`;
-}
-
-for (const config of configs) {
-  const directory = path.join(root, 'public', config.slug);
-  await fs.mkdir(directory, { recursive: true });
-  await fs.writeFile(path.join(directory, 'index.html'), page(config));
-  console.log(`generated ${config.slug}`);
+// Only write when run directly (npm run generate). Importing this module — as the drift test
+// does — must never touch public/.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await writePages();
 }
