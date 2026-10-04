@@ -68,6 +68,7 @@ function applyExample(){
  for(const [k,v] of Object.entries(values)){$(k).value=v;$(k).classList.remove('example-flash');void $(k).offsetWidth;$(k).classList.add('example-flash')}
  run();const btn=$('apply-example');const old=btn.textContent;btn.textContent='Example applied ✓';btn.classList.add('example-success');status('Example applied. Highlighted fields were updated; review them before quoting.');track('example_applied',$('jobType').value);setTimeout(()=>{btn.textContent=old;btn.classList.remove('example-success')},1800);
 }
+function enforcePaidFirst(){const paid=document.querySelector('[data-paid-cta="results"]')?.closest('.result-toolkit');const free=document.querySelector('[data-free-cta="results"]')?.closest('.result-toolkit');if(paid&&free&&paid!==free&&free.parentNode===paid.parentNode){free.parentNode.insertBefore(paid,free);const h=paid.querySelector('h3');if(h)h.textContent='Turn this estimate into a repeatable pressure-washing pricing system';const p=paid.querySelector('p');if(p)p.textContent='The €24.99 Pro Toolkit takes this model into reusable job costing, quote preparation, monthly planning and break-even analysis.';const fp=free.querySelector('p');if(fp)fp.textContent='Not ready for the full toolkit? Save the free checklist and keep using this calculator.';}}
 let completionTracked=false;
 function trackCompletion(){if(current&&!completionTracked){completionTracked=true;track('calculator_completed')}}
 form.addEventListener('input',run);
@@ -76,6 +77,7 @@ form.addEventListener('submit',e=>{e.preventDefault();run();if(current)trackComp
 $('apply-example').addEventListener('click',applyExample);
 $('reset').addEventListener('click',()=>{form.reset();$('province').value='AB';setCountry();applyExample();status('Example inputs restored.')});
 $('quick-estimate').addEventListener('click',()=>{trackCompletion();track('estimate_jump_clicked','mobile')});
+enforcePaidFirst();
 document.querySelectorAll('[data-free-cta]').forEach(link=>link.addEventListener('click',()=>track('free_checklist_clicked',link.dataset.freeCta)));
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');
