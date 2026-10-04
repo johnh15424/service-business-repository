@@ -1,7 +1,7 @@
 export default {
   id:'carpet_cleaning',name:'Carpet Cleaning',category:'Home & Property',slug:'carpet-cleaning-price-calculator',status:'live',
   seo:{title:'Carpet Cleaning Price Calculator | Costs, Margin & Tax',description:'Free carpet cleaning price calculator for labour, chemicals, machine wear, travel, overhead, minimum charge, margin and tax.'},
-  copy:{eyebrow:'CARPET CLEANING · FREE PRICING TOOL',headline:'Carpet cleaning price calculator.',lead:'Build a quote from paid time, chemicals, extraction-machine wear, travel, setup, overhead and retained margin.',resultEyebrow:'YOUR CARPET CLEANING JOB, COSTED'},
+  copy:{eyebrow:'CARPET CLEANING · FREE PRICING TOOL',headline:'Carpet cleaning price calculator.',lead:'Build a quote from paid time, chemicals, extraction-machine wear, travel, setup, overhead and retained margin.',resultEyebrow:'YOUR CARPET CLEANING JOB, COSTED',footerNote:'Planning support only. Review real costs, scope, tax and local obligations before quoting.'},
   jobTypes:[
     {id:'room',label:'Single room',example:{crew:1,workHours:1,travelHours:.4,chemicals:8,wear:6,waterPower:4,spotting:2,minimum:65}},
     {id:'home',label:'Multi-room home',example:{crew:1,workHours:3.5,travelHours:.5,chemicals:24,wear:14,waterPower:8,spotting:6,minimum:150}},
