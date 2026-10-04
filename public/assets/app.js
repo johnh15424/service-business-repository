@@ -1,5 +1,6 @@
 import {calculate,numericKeys} from './pricing.js';
 import {countries,provinces,services,example,reviewed} from './profiles.js';
+import { mountCompactPaidCta } from './result-cta.js';
 const $=id=>document.getElementById(id);
 const form=$('calculator');
 const canonical=document.querySelector('link[rel="canonical"]');
@@ -169,6 +170,9 @@ run();
 
 track('calculator_viewed');
 $('quick-estimate').addEventListener('click',trackCompletion);
+// Mount before the [data-paid-cta] scan below: querySelectorAll is not live, so the
+// compact CTA must exist before the runtime registers its click tracking.
+mountCompactPaidCta('dog_grooming');
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 
 const resultToolkit=document.querySelector('.result-toolkit');
