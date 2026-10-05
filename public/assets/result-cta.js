@@ -7,6 +7,50 @@
 // Product URLs and price always come from niche-registry.js. Nothing here hardcodes Payhip.
 import { nicheById } from './niche-registry.js';
 
+const GA4_MEASUREMENT_ID = 'G-J3BBT6YZRB';
+const GA4_LOADER_ID = 'service-pricing-tools-ga4';
+
+// Load the site's Google tag once. Every live calculator runtime imports this shared module,
+// so analytics stays consistent across legacy, generated and factory calculators without
+// duplicating the gtag snippet in every page.
+function initGoogleTag() {
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function gtag(){ window.dataLayer.push(arguments); };
+
+  if (!document.getElementById(GA4_LOADER_ID)) {
+    const script = document.createElement('script');
+    script.id = GA4_LOADER_ID;
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`;
+    document.head.appendChild(script);
+  }
+
+  if (!window.__servicePricingToolsGa4Configured) {
+    window.__servicePricingToolsGa4Configured = true;
+    window.gtag('js', new Date());
+    window.gtag('config', GA4_MEASUREMENT_ID);
+  }
+}
+
+initGoogleTag();
+
+// Calculator runtimes already dispatch calculator:conversion events for funnel actions.
+// Forward those events into GA4 so calculator completions, free-checklist clicks and paid-toolkit
+// clicks can be reported as events and later configured as secondary conversions if useful.
+if (!window.__servicePricingToolsGa4ConversionListener) {
+  window.__servicePricingToolsGa4ConversionListener = true;
+  window.addEventListener('calculator:conversion', event => {
+    const detail = event?.detail || {};
+    const eventName = String(detail.event || '').trim();
+    if (!eventName) return;
+
+    const params = {};
+    if (detail.calculator) params.calculator = detail.calculator;
+    if (detail.placement) params.placement = detail.placement;
+    window.gtag('event', eventName, params);
+  });
+}
+
 const MOUNT_ID = 'compact-paid-cta';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
