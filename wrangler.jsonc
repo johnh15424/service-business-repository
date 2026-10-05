@@ -1,8 +1,10 @@
 {
   "name": "service-business-repository",
+  "main": "src/worker.js",
   "compatibility_date": "2026-09-26",
   "assets": {
     "directory": "./public",
+    "binding": "ASSETS",
     "html_handling": "force-trailing-slash",
     "not_found_handling": "404-page"
   }
