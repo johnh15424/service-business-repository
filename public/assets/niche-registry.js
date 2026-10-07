@@ -215,7 +215,7 @@ export const nicheRegistry = [
     freeUrl: null,
     proUrl: null,
     proPrice: 24.99
-  }
+  },
   {
     id: 'landscaping',
     name: 'Landscaping',
