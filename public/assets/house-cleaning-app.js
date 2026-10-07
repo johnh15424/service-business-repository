@@ -78,7 +78,7 @@ const niche=nicheById('house_cleaning');
 const hero=document.querySelector('.hero');
 if(hero&&niche?.proUrl&&!hero.querySelector('.hero-commercial')){
  const box=document.createElement('div');box.className='hero-commercial';
- box.innerHTML=`<p><strong>For house-cleaning business owners.</strong> Use the free calculator below for one job, or get the reusable Pricing &amp; Profit Toolkit now.</p><a class="primary button-link" href="${niche.proUrl}" data-paid-cta="hero">Get the House Cleaning Pro Toolkit · €${Number(niche.proPrice||24.99).toFixed(2)} ↗</a>`;
+ box.innerHTML=`<p><strong>For house-cleaning business owners.</strong> Use the free calculator below for one job, or get the reusable Pricing &amp; Profit Toolkit.</p><ul class="hero-commercial-list"><li>Reusable pricing workbook</li><li>Job costing and service examples</li><li>Monthly profit planning</li></ul><p class="micro"><strong>One-time €${Number(niche.proPrice||24.99).toFixed(2)}</strong> · Instant digital download</p><a class="primary button-link" href="${niche.proUrl}" data-paid-cta="hero">Get the House Cleaning Pro Toolkit · €${Number(niche.proPrice||24.99).toFixed(2)} ↗</a>`;
  hero.append(box);
 }
 const toolkit=document.querySelector('.result-toolkit');
