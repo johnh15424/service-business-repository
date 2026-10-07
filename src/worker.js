@@ -6,6 +6,22 @@ const GOOGLE_TAG_HTML = `<!-- Google tag (gtag.js) -->
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
   gtag('config', '${GOOGLE_TAG_ID}');
+
+  function forwardCommercialEvent(event) {
+    var detail = event && event.detail ? event.detail : {};
+    var eventName = String(detail.event || '').trim();
+    if (!eventName) return;
+
+    var params = {};
+    if (detail.calculator) params.calculator = detail.calculator;
+    if (detail.niche) params.niche = detail.niche;
+    if (detail.placement) params.placement = detail.placement;
+
+    gtag('event', eventName, params);
+  }
+
+  window.addEventListener('calculator:conversion', forwardCommercialEvent);
+  window.addEventListener('commercial:conversion', forwardCommercialEvent);
 </script>`;
 
 export default {
