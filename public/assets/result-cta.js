@@ -7,24 +7,7 @@
 // Product URLs and price always come from niche-registry.js. Nothing here hardcodes Payhip.
 import { nicheById } from './niche-registry.js';
 
-// Calculator runtimes already dispatch calculator:conversion events for funnel actions.
-// Forward those events into GA4. The Google tag itself is injected sitewide by the Cloudflare
-// Worker immediately inside <head>, matching Google's recommended manual installation pattern.
-if (!window.__servicePricingToolsGa4ConversionListener) {
-  window.__servicePricingToolsGa4ConversionListener = true;
-  window.addEventListener('calculator:conversion', event => {
-    const detail = event?.detail || {};
-    const eventName = String(detail.event || '').trim();
-    if (!eventName || typeof window.gtag !== 'function') return;
-
-    const params = {};
-    if (detail.calculator) params.calculator = detail.calculator;
-    if (detail.placement) params.placement = detail.placement;
-    window.gtag('event', eventName, params);
-  });
-}
-
-const MOUNT_ID = 'compact-paid-cta';
+// Funnel events are forwarded to GA4 sitewide by the Cloudflare Worker.\n\nconst MOUNT_ID = 'compact-paid-cta';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
