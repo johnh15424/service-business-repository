@@ -11,3 +11,5 @@ test('public assets use the verified Payhip product and exclude obsolete artifac
 test('both paid CTAs point to the verified product',()=>{const html=read('public/dog-grooming-price-calculator/index.html');assert.equal([...html.matchAll(/href="https:\/\/payhip.com\/b\/7pXUm" data-paid-cta=/g)].length,2);assert.doesNotMatch(html,/purchase access coming soon/);});
 
 test('sitewide GA4 forwarding covers calculator and commercial funnel events',()=>{const worker=read('src/worker.js');assert.match(worker,/calculator:conversion/);assert.match(worker,/commercial:conversion/);assert.match(worker,/gtag\('event', eventName, params\)/);const cta=read('public/assets/result-cta.js');assert.doesNotMatch(cta,/addEventListener\('calculator:conversion'/);});
+
+test('Google tag decorates Payhip links for cross-domain attribution',()=>{const worker=read('src/worker.js');assert.match(worker,/linker:\\s*\\{\\s*domains:\\s*\\['servicepricingtools\\.com', 'payhip\\.com'\\]/);});
