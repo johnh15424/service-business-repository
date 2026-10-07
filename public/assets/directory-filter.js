@@ -29,7 +29,7 @@ function trackPaidClick(link) {
 if (grid) {
   // Delegated, so it survives cards being hidden and shown by the filter.
   grid.addEventListener('click', event => {
-    const link = event.target.closest('[data-paid-cta="directory-card"]');
+    const link = event.target.closest('[data-paid-cta]');
     if (link && grid.contains(link)) trackPaidClick(link);
   });
 }
@@ -47,7 +47,8 @@ if (grid && controls) {
   const label = document.createElement('label');
   label.className = 'directory-search-label';
   label.htmlFor = 'directory-search';
-  label.textContent = 'Search calculators';
+  const directoryNoun = controls.dataset.directoryType === 'toolkit' ? 'toolkits' : 'calculators';
+  label.textContent = `Search ${directoryNoun}`;
   const field = document.createElement('div');
   field.className = 'directory-search-field';
   field.append(label, search);
@@ -89,8 +90,8 @@ if (grid && controls) {
     }
     if (empty) empty.hidden = visible !== 0;
     count.textContent = visible === cards.length
-      ? `Showing all ${cards.length} calculators`
-      : `Showing ${visible} of ${cards.length} calculators`;
+      ? `Showing all ${cards.length} ${directoryNoun}`
+      : `Showing ${visible} of ${cards.length} ${directoryNoun}`;
   }
 
   search.addEventListener('input', apply);

@@ -46,6 +46,10 @@ const GOOGLE_TAG_HTML = `<!-- Google tag (gtag.js) -->
     var params = {};
     if (detail.calculator) params.calculator = detail.calculator;
     if (detail.niche) params.niche = detail.niche;
+    if (detail.funnel) {
+      params.funnel = detail.funnel;
+      if (!params.niche) params.niche = detail.funnel;
+    }
     if (detail.placement) params.placement = detail.placement;
 
     gtag('event', eventName, params);
@@ -53,6 +57,7 @@ const GOOGLE_TAG_HTML = `<!-- Google tag (gtag.js) -->
 
   window.addEventListener('calculator:conversion', forwardCommercialEvent);
   window.addEventListener('commercial:conversion', forwardCommercialEvent);
+  window.addEventListener('funnel:conversion', forwardCommercialEvent);
 </script>`;
 
 export default {

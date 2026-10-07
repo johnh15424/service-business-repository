@@ -69,6 +69,7 @@ test('no filter control is rendered for visitors without JavaScript', () => {
 
   const filter = readFileSync(join('public', 'assets', 'directory-filter.js'), 'utf8');
   assert.match(filter, /chipRow\.append\(chip\('all', 'All', true\)\)/, 'chips must be injected by JS');
+  assert.match(filter, /\[data-paid-cta\]/, 'directory tracker must cover all paid CTA placements');
   assert.match(filter, /controls\.hidden = false;/, 'controls are revealed only after wiring');
   assert.ok(
     filter.indexOf('controls.hidden = false;') > filter.indexOf("chipRow.addEventListener('click'"),
@@ -108,7 +109,7 @@ test('directory Pro Toolkit links are bound and tracked, not just labelled', asy
 
   const handler = listeners.get('click');
   assert.ok(handler, 'directory must attach a click listener to the grid');
-  handler({ target: { closest: sel => (sel === '[data-paid-cta="directory-card"]' ? link : null) } });
+  handler({ target: { closest: sel => (sel === '[data-paid-cta]' ? link : null) } });
 
   assert.equal(globalThis.window.dataLayer.length, 1, 'click must push exactly one dataLayer entry');
   const pushed = globalThis.window.dataLayer[0];
