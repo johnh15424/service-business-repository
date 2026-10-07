@@ -19,6 +19,14 @@ const products = {
   proUrl: config.products?.proUrl || registryProduct?.proUrl || null,
   proPrice: Number(config.products?.proPrice || registryProduct?.proPrice || 24.99)
 };
+const hero = document.querySelector('.hero');
+if (hero && products.proUrl && !hero.querySelector('.hero-commercial')) {
+  const box = document.createElement('div');
+  box.className = 'hero-commercial';
+  box.innerHTML = `<p><strong>For ${esc(config.name)} business owners.</strong> Use the free calculator below for one job, or get the reusable Pricing &amp; Profit Toolkit now.</p><a class="primary button-link" href="${esc(products.proUrl)}" data-paid-cta="hero">Get the ${esc(config.name)} Pro Toolkit · €${products.proPrice.toFixed(2)} ↗</a>`;
+  hero.append(box);
+}
+
 const productBlock = (() => {
   const pro = products.proUrl ? `<a class="primary button-link" href="${esc(products.proUrl)}" data-paid-cta="results">Get the ${esc(config.name)} Pro Toolkit - €${products.proPrice.toFixed(2)} ↗</a>` : '<span class="coming">Pro toolkit being prepared</span>';
   const free = products.freeUrl ? `<a class="secondary button-link" href="${esc(products.freeUrl)}" data-free-cta="results">Download the free pricing checklist ↗</a>` : '<span class="coming">Free checklist being prepared</span>';
