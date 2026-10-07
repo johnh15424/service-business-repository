@@ -53,6 +53,7 @@ const GOOGLE_TAG_HTML = `<!-- Google tag (gtag.js) -->
 
   window.addEventListener('calculator:conversion', forwardCommercialEvent);
   window.addEventListener('commercial:conversion', forwardCommercialEvent);
+  window.addEventListener('funnel:conversion', forwardCommercialEvent);
 </script>`;
 
 export default {
