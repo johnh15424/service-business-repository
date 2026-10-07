@@ -5,7 +5,9 @@ const GOOGLE_TAG_HTML = `<!-- Google tag (gtag.js) -->
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', '${GOOGLE_TAG_ID}');
+  gtag('config', '${GOOGLE_TAG_ID}', {
+    linker: { domains: ['servicepricingtools.com', 'payhip.com'] }
+  });
 
   function forwardCommercialEvent(event) {
     var detail = event && event.detail ? event.detail : {};

@@ -2,6 +2,7 @@
   "name": "service-business-repository",
   "main": "src/worker.js",
   "compatibility_date": "2026-09-26",
+  "previews": {},
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
