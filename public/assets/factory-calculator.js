@@ -23,7 +23,7 @@ const hero = document.querySelector('.hero');
 if (hero && products.proUrl && !hero.querySelector('.hero-commercial')) {
   const box = document.createElement('div');
   box.className = 'hero-commercial';
-  box.innerHTML = `<p><strong>For ${esc(config.name)} business owners.</strong> Use the free calculator below for one job, or get the reusable Pricing &amp; Profit Toolkit now.</p><a class="primary button-link" href="${esc(products.proUrl)}" data-paid-cta="hero">Get the ${esc(config.name)} Pro Toolkit · €${products.proPrice.toFixed(2)} ↗</a>`;
+  box.innerHTML = `<p><strong>For ${esc(config.name)} business owners.</strong> Use the free calculator below for one job, or get the reusable Pricing &amp; Profit Toolkit.</p><ul class="hero-commercial-list"><li>Reusable pricing workbook</li><li>Job costing and service examples</li><li>Monthly profit planning</li></ul><p class="micro"><strong>One-time €${products.proPrice.toFixed(2)}</strong> · Instant digital download</p><a class="primary button-link" href="${esc(products.proUrl)}" data-paid-cta="hero">Get the ${esc(config.name)} Pro Toolkit · €${products.proPrice.toFixed(2)} ↗</a>`;
   hero.append(box);
 }
 
