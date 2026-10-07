@@ -8,6 +8,12 @@
 import { nicheById } from './niche-registry.js';
 
 // Funnel events are forwarded to GA4 sitewide by the Cloudflare Worker.\n\nconst MOUNT_ID = 'compact-paid-cta';
+const toolkitProof = {
+  house_cleaning: '6 workbook tabs including Job Calculator, Quote Builder, Monthly Planner and Break-even',
+  mobile_car_detailing: '6 workbook tabs including Job Calculator, Quote Builder, Monthly Planner and Break-even',
+  pressure_washing: '6 workbook tabs including Service Pricing, Quote Builder, Capacity Planner and Break-even',
+  dog_grooming: '12-tab toolkit including Dashboard, Price Calculator, Quote Builder, Service Profitability and Break-even'
+};
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -37,7 +43,7 @@ export function mountCompactPaidCta(nicheId) {
   section.id = MOUNT_ID;
   section.className = 'compact-paid-cta';
   section.setAttribute('aria-labelledby', `${MOUNT_ID}-title`);
-  section.innerHTML = `<p class="compact-paid-cta-title" id="${MOUNT_ID}-title">Want to price every job this way?</p><a class="primary button-link" href="${esc(niche.proUrl)}" data-funnel="${esc(niche.id)}" data-paid-cta="result-compact">Get the ${esc(niche.name)} Pricing &amp; Profit Toolkit · €${price} ↗</a><div class="free-paid-compare"><div><p class="free-paid-heading">Free calculator</p><ul><li>One-job estimate in the browser</li><li>Core job costing</li><li>Free to keep using</li></ul></div><div><p class="free-paid-heading">Pro Toolkit · €${price}</p><ul><li>Reusable pricing workbook</li><li>Save and review past jobs</li><li>Job costing and service examples</li><li>Monthly planning</li><li>Downloadable working tool</li></ul></div></div>`;
+  section.innerHTML = `<p class="compact-paid-cta-title" id="${MOUNT_ID}-title">Want to price every job this way?</p><a class="primary button-link" href="${esc(niche.proUrl)}" data-funnel="${esc(niche.id)}" data-paid-cta="result-compact">Get the ${esc(niche.name)} Pricing &amp; Profit Toolkit · €${price} ↗</a><div class="free-paid-compare"><div><p class="free-paid-heading">Free calculator</p><ul><li>One-job estimate in the browser</li><li>Core job costing</li><li>Free to keep using</li></ul></div><div><p class="free-paid-heading">Pro Toolkit · €${price}</p><ul><li>Reusable pricing workbook</li><li>${esc(toolkitProof[niche.id] || 'Job costing, quote support and profit planning')}</li><li>Monthly planning</li><li>Break-even analysis</li><li>Downloadable working tool</li></ul></div></div>`;
 
   rows.parentNode.insertBefore(section, rows);
   return section;
