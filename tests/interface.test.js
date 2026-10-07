@@ -81,6 +81,6 @@ test('conversion hooks count valid completion once and identify paid CTA placeme
  for(const link of dom.window.document.querySelectorAll('[data-paid-cta]')){
   link.addEventListener('click',e=>e.preventDefault());link.click();
  }
- assert.deepEqual(Array.from(events.filter(e=>e.event==='paid_cta_clicked'),e=>e.placement),['results','bottom']);
+ assert.deepEqual(Array.from(events.filter(e=>e.event==='paid_cta_clicked'),e=>e.placement),['hero','results','bottom']);
  assert.ok(events.every(e=>Object.keys(e).every(k=>['event','calculator','placement'].includes(k))));
 });
