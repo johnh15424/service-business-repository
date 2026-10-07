@@ -7,6 +7,11 @@ import carpetCleaning from './niches/carpet-cleaning.js';
 import handyman from './niches/handyman.js';
 import paintingDecorating from './niches/painting-decorating.js';
 import gutterCleaning from './niches/gutter-cleaning.js';
+import landscaping from './niches/landscaping.js';
+import treeService from './niches/tree-service.js';
+import pestControl from './niches/pest-control.js';
+import applianceRepair from './niches/appliance-repair.js';
+import hvacService from './niches/hvac-service.js';
 
 // Factory niches only. These pages mount #factory-root and are driven at runtime by
 // /assets/factory-calculator.js, which renders the form, the results and the paid-first
@@ -14,7 +19,7 @@ import gutterCleaning from './niches/gutter-cleaning.js';
 //
 // Pages served by a legacy runtime (dog grooming, house cleaning, lawn care, mobile car
 // detailing, pressure washing) are hand-maintained and deliberately NOT generated here.
-export const factoryConfigs = [windowCleaning, carpetCleaning, handyman, paintingDecorating, gutterCleaning];
+export const factoryConfigs = [windowCleaning, carpetCleaning, handyman, paintingDecorating, gutterCleaning, landscaping, treeService, pestControl, applianceRepair, hvacService];
 const root = process.cwd();
 
 // Config-authored copy is emitted as written so generated pages stay byte-identical to the
