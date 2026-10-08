@@ -187,6 +187,17 @@ export const nicheRegistry = [
     proPrice: 24.99
   },
   {
+    id: 'commercial_cleaning',
+    name: 'Commercial Cleaning',
+    category: 'Home & Property',
+    directoryDescription: 'Bid recurring commercial cleaning work using cleaner-hours, supplies, travel, access, periodic tasks, overhead and margin.',
+    status: 'build',
+    calculatorPath: '/commercial-cleaning-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
     id: 'dryer_vent_cleaning',
     name: 'Dryer Vent Cleaning',
     category: 'Home & Property',
