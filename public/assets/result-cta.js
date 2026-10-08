@@ -7,7 +7,9 @@
 // Product URLs and price always come from niche-registry.js. Nothing here hardcodes Payhip.
 import { nicheById } from './niche-registry.js';
 
-// Funnel events are forwarded to GA4 sitewide by the Cloudflare Worker.\n\nconst MOUNT_ID = 'compact-paid-cta';
+// Funnel events are forwarded to GA4 sitewide by the Cloudflare Worker.
+
+const MOUNT_ID = 'compact-paid-cta';
 const toolkitProof = {
   house_cleaning: '6 workbook tabs including Job Calculator, Quote Builder, Monthly Planner and Break-even',
   mobile_car_detailing: '6 workbook tabs including Job Calculator, Quote Builder, Monthly Planner and Break-even',
