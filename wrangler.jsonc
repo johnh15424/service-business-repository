@@ -9,5 +9,8 @@
     "run_worker_first": true,
     "html_handling": "force-trailing-slash",
     "not_found_handling": "404-page"
+  },
+  "vars": {
+    "QUOTE_PAYMENT_MODE": "disabled"
   }
 }

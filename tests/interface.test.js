@@ -13,7 +13,7 @@ function setup(t){
  // regression coverage, so this legacy UI harness supplies the imported symbol without trying
  // to reimplement or duplicate the module inside jsdom.
  const mountCompactPaidCta=()=>null;
- Object.assign(dom.window,{calculate,numericKeys,countries,provinces,services,example,reviewed,mountCompactPaidCta});
+ Object.assign(dom.window,{calculate,numericKeys,countries,provinces,services,example,reviewed,mountCompactPaidCta,mountQuotePreview:()=>null,calculatorSnapshot:()=>null});
  dom.window.eval(source);const $=id=>dom.window.document.getElementById(id);
  const set=(id,value)=>{$(id).value=String(value);$(id).dispatchEvent(new dom.window.Event('change',{bubbles:true}));};
  const result=key=>dom.window.document.querySelector(`[data-result="${key}"]`).textContent;

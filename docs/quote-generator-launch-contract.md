@@ -13,7 +13,7 @@
 - Render two selectable templates (Classic and Modern).
 - Supported logo files: PNG/JPEG/WebP/AVIF/PDF. PDF and unsupported native formats must be converted safely, with MIME sniffing, bounded size and dimensions and no script execution.
 - Quote pricing must allow user-edited line items without leaking costing, margins or proprietary assumptions.
-- Each quote has an immutable snapshot, signed token, expiry and one-time order fulfilment.
+- Each quote has an immutable snapshot, a server-validated 256-bit opaque bearer capability (stored hashed), expiry and one-time order fulfilment. A client token never proves payment.
 
 ## Payment release requirements
 1. Confirm a provider supports dynamic customer-specific checkout and a trustworthy verified callback/API.
@@ -39,4 +39,4 @@
 - No sitewide production deployment until all release gates pass.
 
 ## Current status
-PR #31 is prototype-only. It does not include checkout or final PDF and must stay draft.
+PR #31 now includes the shared editor, PDF renderer and disabled-by-default PayPal adapter. It is not launch-complete and must stay draft until the real provider and Cloudflare end-to-end gates pass. See quote-generator-release.md for evidence, limitations and precise owner actions.

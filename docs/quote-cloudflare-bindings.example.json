@@ -1,0 +1,8 @@
+{
+  "notice": "Merge into an isolated sandbox environment only after resource authorisation; replace IDs with actual existing/provisioned resource IDs.",
+  "vars": {"QUOTE_PAYMENT_MODE": "sandbox", "QUOTE_SUPPORT_EMAIL": "REPLACE_WITH_MONITORED_ADDRESS"},
+  "d1_databases": [{"binding": "QUOTE_DB", "database_name": "spt-quotes-sandbox", "database_id": "REPLACE_WITH_REAL_ID", "migrations_dir": "migrations"}],
+  "r2_buckets": [{"binding": "QUOTE_FILES", "bucket_name": "spt-quotes-sandbox-private"}],
+  "ratelimits": [{"name": "QUOTE_LIMITER", "namespace_id": "3101", "simple": {"limit": 30, "period": 60}}],
+  "triggers": {"crons": ["17 3 * * *"]}
+}

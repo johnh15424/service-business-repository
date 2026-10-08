@@ -1,3 +1,5 @@
+import { calculatorSnapshot } from './quote-model.js';
+import { mountQuotePreview } from './quote-preview.js';
 import {calculate,numericKeys} from './pricing.js';
 import {countries,provinces,services,example,reviewed} from './profiles.js';
 import { mountCompactPaidCta } from './result-cta.js';
@@ -189,3 +191,5 @@ if(resultToolkit && !document.getElementById('free-checklist')){
  resultToolkit.before(section);
  link.addEventListener('click',()=>track('free_checklist_clicked','results'));
 }
+
+mountQuotePreview({name:'Dog Grooming',niche:'dog_grooming',getSnapshot:()=>calculatorSnapshot({niche:'dog_grooming',name:'Dog Grooming',result:current?.result,currency,document})});

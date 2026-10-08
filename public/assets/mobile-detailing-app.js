@@ -1,3 +1,5 @@
+import { calculatorSnapshot } from './quote-model.js';
+import { mountQuotePreview } from './quote-preview.js';
 import {globalCountries,globalCurrencies,mergeCountries,populateCountrySelect,globalReviewed} from './global-locales.js';
 import { mountCompactPaidCta } from './result-cta.js';
 import { nicheById } from './niche-registry.js';
@@ -29,3 +31,5 @@ document.querySelectorAll('[data-free-cta]').forEach(link=>link.addEventListener
 mountCompactPaidCta('mobile_car_detailing');
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');setCountry();example();
+
+mountQuotePreview({name:'Mobile Car Detailing',niche:'mobile_car_detailing',getSnapshot:()=>calculatorSnapshot({niche:'mobile_car_detailing',name:'Mobile Car Detailing',result:current,currency,document})});
