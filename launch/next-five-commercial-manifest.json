@@ -1,0 +1,92 @@
+{
+  "generated_at": "2026-10-07",
+  "status": "build-stage",
+  "price": 24.99,
+  "niches": [
+    {
+      "id": "landscaping",
+      "name": "Landscaping",
+      "mailer_group_id": "200689469137880198",
+      "mailer_automation_id": "200689516972869235",
+      "free_product_name": "Landscaping Pricing Checklist - Free",
+      "paid_product_name": "Landscaping Pricing Calculator & Profit Toolkit",
+      "tags": [
+        "landscaping",
+        "landscaping business",
+        "landscape pricing",
+        "pricing calculator",
+        "job costing",
+        "profit calculator",
+        "service pricing"
+      ]
+    },
+    {
+      "id": "tree_service",
+      "name": "Tree Service",
+      "mailer_group_id": "200689470801970667",
+      "mailer_automation_id": "200689532872426593",
+      "free_product_name": "Tree Service Pricing Checklist - Free",
+      "paid_product_name": "Tree Service Pricing Calculator & Profit Toolkit",
+      "tags": [
+        "tree service",
+        "tree removal business",
+        "arborist pricing",
+        "pricing calculator",
+        "job costing",
+        "profit calculator",
+        "service pricing"
+      ]
+    },
+    {
+      "id": "pest_control",
+      "name": "Pest Control",
+      "mailer_group_id": "200689485532366211",
+      "mailer_automation_id": "200689536248842012",
+      "free_product_name": "Pest Control Pricing Checklist - Free",
+      "paid_product_name": "Pest Control Pricing Calculator & Profit Toolkit",
+      "tags": [
+        "pest control",
+        "pest control business",
+        "exterminator pricing",
+        "pricing calculator",
+        "job costing",
+        "profit calculator",
+        "service pricing"
+      ]
+    },
+    {
+      "id": "appliance_repair",
+      "name": "Appliance Repair",
+      "mailer_group_id": "200689502152296114",
+      "mailer_automation_id": "200689540621403495",
+      "free_product_name": "Appliance Repair Pricing Checklist - Free",
+      "paid_product_name": "Appliance Repair Pricing Calculator & Profit Toolkit",
+      "tags": [
+        "appliance repair",
+        "appliance repair business",
+        "repair pricing",
+        "pricing calculator",
+        "job costing",
+        "profit calculator",
+        "service pricing"
+      ]
+    },
+    {
+      "id": "hvac_service",
+      "name": "HVAC Service",
+      "mailer_group_id": "200689503809045639",
+      "mailer_automation_id": "200689560014816362",
+      "free_product_name": "HVAC Service Pricing Checklist - Free",
+      "paid_product_name": "HVAC Service Pricing Calculator & Profit Toolkit",
+      "tags": [
+        "hvac service",
+        "hvac business",
+        "air conditioning service",
+        "pricing calculator",
+        "job costing",
+        "profit calculator",
+        "service pricing"
+      ]
+    }
+  ]
+}

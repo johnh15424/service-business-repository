@@ -215,7 +215,57 @@ export const nicheRegistry = [
     freeUrl: null,
     proUrl: null,
     proPrice: 24.99
-  }
+  },
+  {
+    id: 'landscaping',
+    name: 'Landscaping',
+    category: 'Garden & Outdoor',
+    status: 'build',
+    calculatorPath: '/landscaping-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'tree_service',
+    name: 'Tree Service',
+    category: 'Garden & Outdoor',
+    status: 'build',
+    calculatorPath: '/tree-service-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'pest_control',
+    name: 'Pest Control',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/pest-control-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'appliance_repair',
+    name: 'Appliance Repair',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/appliance-repair-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
+  {
+    id: 'hvac_service',
+    name: 'HVAC Service',
+    category: 'Home & Property',
+    status: 'build',
+    calculatorPath: '/hvac-service-price-calculator/',
+    freeUrl: null,
+    proUrl: null,
+    proPrice: 24.99
+  },
 ];
 
 export function liveNiches(){
