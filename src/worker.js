@@ -1,5 +1,5 @@
 const GOOGLE_TAG_ID = 'G-J3BBT6YZRB';
-const GOOGLE_TAG_HTML = `<!-- Google tag (gtag.js) -->
+const GOOGLE_TAG_HTML = String.raw`<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
