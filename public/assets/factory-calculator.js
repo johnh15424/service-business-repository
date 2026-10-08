@@ -3,6 +3,7 @@ import { calculateServicePrice } from './pricing-engine.js';
 import { nicheById } from './niche-registry.js';
 
 import { mountCompactPaidCta } from './result-cta.js';
+import { mountQuotePreview } from './quote-preview.js';
 const $ = id => document.getElementById(id);
 const node = $('niche-config');
 if (!node) throw new Error('Missing niche configuration.');
@@ -67,4 +68,5 @@ function applyExample(){const job=config.jobTypes.find(x=>x.id===$('jobType').va
 // Mount before the [data-paid-cta] scan below: querySelectorAll is not live, so the
 // compact CTA must exist before the runtime registers its click tracking.
 mountCompactPaidCta(config.id);
+mountQuotePreview({ name: config.name, onTrack: event => track(event) });
 form.addEventListener('input',run);form.addEventListener('change',e=>e.target.id==='country'?setCountry():run());form.addEventListener('submit',e=>{e.preventDefault();run();if(current&&!completionTracked){completionTracked=true;track('calculator_completed')}$('estimate').focus();$('estimate').scrollIntoView({behavior:'smooth',block:'start'})});$('apply-example').addEventListener('click',applyExample);$('reset').addEventListener('click',()=>{form.reset();setCountry();applyExample()});const quick=$('quick-estimate');if(quick)quick.addEventListener('click',()=>track('estimate_jump_clicked','mobile'));document.querySelectorAll('[data-free-cta]').forEach(a=>a.addEventListener('click',()=>track('free_checklist_clicked',a.dataset.freeCta)));document.querySelectorAll('[data-paid-cta]').forEach(a=>a.addEventListener('click',()=>track('paid_cta_clicked',a.dataset.paidCta)));track('calculator_viewed');setCountry();applyExample();
