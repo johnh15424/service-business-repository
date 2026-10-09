@@ -38,7 +38,8 @@
       "r2_buckets": [
         {
           "binding": "QUOTE_FILES",
-          "bucket_name": "spt-quotes-sandbox-private"
+          "bucket_name": "spt-quotes-sandbox-private",
+          "jurisdiction": "eu"
         }
       ],
       "ratelimits": [
