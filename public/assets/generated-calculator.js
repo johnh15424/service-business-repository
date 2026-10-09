@@ -1,7 +1,9 @@
+import { calculatorSnapshot } from './quote-model.js';
 import { globalCountries, globalCurrencies, mergeCountries, populateCountrySelect, globalReviewed } from './global-locales.js';
 import { calculateServicePrice } from './pricing-engine.js';
 import { nicheById } from './niche-registry.js';
 import { mountCompactPaidCta } from './result-cta.js';
+import { mountQuotePreview } from './quote-preview.js';
 
 const $ = id => document.getElementById(id);
 const configNode = $('niche-config');
@@ -184,6 +186,7 @@ document.querySelectorAll('[data-free-cta]').forEach(link => link.addEventListen
 // Mount before the [data-paid-cta] scan below: querySelectorAll is not live, so the
 // compact CTA must exist before the runtime registers its click tracking.
 mountCompactPaidCta(config.id);
+mountQuotePreview({name:config.name,niche:config.id,getSnapshot:()=>calculatorSnapshot({niche:config.id,name:config.name,result:current,currency,document})});
 document.querySelectorAll('[data-paid-cta]').forEach(link => link.addEventListener('click', () => track('paid_cta_clicked', link.dataset.paidCta)));
 track('calculator_viewed');
 setCountry();

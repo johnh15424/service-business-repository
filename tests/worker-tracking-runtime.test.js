@@ -15,7 +15,7 @@ test('injected tracking script runs and preserves checkout and event forwarding'
     transform(response) { return response; }
   };
   try {
-    await worker.fetch({}, {
+    await worker.fetch(new Request('https://servicepricingtools.com/'), {
       ASSETS: { fetch: async () => new Response('', { headers: { 'content-type': 'text/html' } }) }
     });
   } finally {

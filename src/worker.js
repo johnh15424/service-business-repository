@@ -1,3 +1,4 @@
+import { handleQuoteApi, cleanExpiredQuotes } from './quote-api.js';
 const GOOGLE_TAG_ID = 'G-J3BBT6YZRB';
 const GOOGLE_TAG_HTML = String.raw`<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}"></script>
@@ -58,14 +59,23 @@ const GOOGLE_TAG_HTML = String.raw`<!-- Google tag (gtag.js) -->
   window.addEventListener('calculator:conversion', forwardCommercialEvent);
   window.addEventListener('commercial:conversion', forwardCommercialEvent);
   window.addEventListener('funnel:conversion', forwardCommercialEvent);
+  window.addEventListener('quote:conversion', function(event) {
+    var d = event.detail || {};
+    var p = {product_type:'professional_quote'};
+    ['niche','value','currency','transaction_id','items'].forEach(function(k) { if(d[k] !== undefined) p[k] = d[k]; });
+    gtag('event', d.event, p);
+  });
 </script>`;
 
 export default {
+  async scheduled(controller, env, ctx) { ctx.waitUntil(cleanExpiredQuotes(env)); },
   async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/quotes')) return handleQuoteApi(request, env);
     const response = await env.ASSETS.fetch(request);
     const contentType = response.headers.get('content-type') || '';
 
-    if (!contentType.includes('text/html')) return response;
+    if (!contentType.includes('text/html') || url.pathname.startsWith('/quote-download')) return response;
 
     return new HTMLRewriter()
       .on('head', {

@@ -9,5 +9,54 @@
     "run_worker_first": true,
     "html_handling": "force-trailing-slash",
     "not_found_handling": "404-page"
+  },
+  "vars": {
+    "QUOTE_PAYMENT_MODE": "disabled"
+  },
+  "env": {
+    "sandbox": {
+      "name": "service-business-repository-sandbox",
+      "assets": {
+        "directory": "./public",
+        "binding": "ASSETS",
+        "run_worker_first": true,
+        "html_handling": "force-trailing-slash",
+        "not_found_handling": "404-page"
+      },
+      "vars": {
+        "QUOTE_PAYMENT_MODE": "sandbox",
+        "QUOTE_SUPPORT_EMAIL": "REPLACE_WITH_MONITORED_ADDRESS"
+      },
+      "d1_databases": [
+        {
+          "binding": "QUOTE_DB",
+          "database_name": "spt-quotes-sandbox",
+          "database_id": "508f48d8-b691-4205-9363-f7ff89fbd072",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "QUOTE_FILES",
+          "bucket_name": "spt-quotes-sandbox-private",
+          "jurisdiction": "eu"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "QUOTE_LIMITER",
+          "namespace_id": "3101",
+          "simple": {
+            "limit": 30,
+            "period": 60
+          }
+        }
+      ],
+      "triggers": {
+        "crons": [
+          "17 3 * * *"
+        ]
+      }
+    }
   }
 }
