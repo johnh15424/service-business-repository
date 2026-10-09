@@ -1,3 +1,4 @@
+import {handleInvoiceApi} from './invoice-api.js';
 import { handleQuoteApi, cleanExpiredQuotes } from './quote-api.js';
 const GOOGLE_TAG_ID = 'G-J3BBT6YZRB';
 const GOOGLE_TAG_HTML = String.raw`<!-- Google tag (gtag.js) -->
@@ -71,6 +72,12 @@ export default {
   async scheduled(controller, env, ctx) { ctx.waitUntil(cleanExpiredQuotes(env)); },
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/invoices')) return handleInvoiceApi(request,env);
+    if (url.pathname.startsWith('/invoice-generator')) {
+      if(env.INVOICE_PREVIEW_ENABLED!=='true'||['servicepricingtools.com','www.servicepricingtools.com','service-business-repository.irishambience.workers.dev'].includes(url.hostname))return new Response('Not found',{status:404});
+      const page=await env.ASSETS.fetch(request);const h=new Headers(page.headers);h.set('Cache-Control','no-store');h.set('Referrer-Policy','no-referrer');h.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-src blob:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
+      return new Response(page.body,{status:page.status,headers:h});
+    }
     if (url.pathname.startsWith('/api/quotes')) return handleQuoteApi(request, env);
     const response = await env.ASSETS.fetch(request);
     const contentType = response.headers.get('content-type') || '';
