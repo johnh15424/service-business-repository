@@ -39,6 +39,7 @@ function renderFunnel(node){
     <p>The €${Number(niche.proPrice || 24.99).toFixed(2)} ${esc(niche.name)} Pricing Calculator & Profit Toolkit is a downloadable working system for pricing jobs, preparing quotes and checking profitability.</p>
     ${proofList}
     ${paid}
+    <p class="micro">One-time payment. Digital download through Payhip after checkout. No subscription.</p>
     <p class="micro">Prefer to try the method first? The calculator is free.</p>
     ${calculator}
     <div class="commercial-fallback">${free}</div>
