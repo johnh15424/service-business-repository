@@ -42,14 +42,21 @@ jobs:
           fi
           echo "Confirmation accepted."
 
-      - name: Enforce deployment source branch
+      # GitHub only registers workflow_dispatch workflows that live on the
+      # default branch, so this may be launched from main. The deployed code
+      # is pinned by the checkout step below regardless of which ref launched
+      # it; this step only rejects launches from unexpected branches.
+      - name: Enforce launch ref
         run: |
-          if [ "${{ github.ref }}" != "refs/heads/feature/quote-generator-preview" ]; then
-            echo "::error::This workflow may only run from feature/quote-generator-preview."
-            echo "Selected ref was '${{ github.ref }}'."
-            exit 1
-          fi
-          echo "Source branch verified: feature/quote-generator-preview"
+          case "${{ github.ref }}" in
+            refs/heads/main|refs/heads/feature/quote-generator-preview)
+              echo "Launch ref accepted: ${{ github.ref }}" ;;
+            *)
+              echo "::error::This workflow may only be launched from main or feature/quote-generator-preview."
+              echo "Selected ref was '${{ github.ref }}'."
+              exit 1 ;;
+          esac
+          echo "Deployment source is pinned to feature/quote-generator-preview."
 
       - name: Check out deployment source
         uses: actions/checkout@v4
