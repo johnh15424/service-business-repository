@@ -34,10 +34,11 @@ jobs:
     steps:
       # ---- Guard rails before anything is installed or deployed ----------
       - name: Confirm deployment target
+        env:
+          USER_CONFIRMATION: ${{ inputs.confirm }}
         run: |
-          if [ "${{ inputs.confirm }}" != "service-business-repository-sandbox" ]; then
-            echo "::error::Confirmation text did not match. Got '${{ inputs.confirm }}'."
-            echo "Type the sandbox Worker name exactly to proceed."
+          if [ "$USER_CONFIRMATION" != "service-business-repository-sandbox" ]; then
+            echo "::error::Confirmation text did not match. Type the sandbox Worker name exactly to proceed."
             exit 1
           fi
           echo "Confirmation accepted."
@@ -47,13 +48,14 @@ jobs:
       # is pinned by the checkout step below regardless of which ref launched
       # it; this step only rejects launches from unexpected branches.
       - name: Enforce launch ref
+        env:
+          LAUNCH_REF: ${{ github.ref }}
         run: |
-          case "${{ github.ref }}" in
+          case "$LAUNCH_REF" in
             refs/heads/main|refs/heads/feature/quote-generator-preview)
-              echo "Launch ref accepted: ${{ github.ref }}" ;;
+              echo "Launch ref accepted." ;;
             *)
               echo "::error::This workflow may only be launched from main or feature/quote-generator-preview."
-              echo "Selected ref was '${{ github.ref }}'."
               exit 1 ;;
           esac
           echo "Deployment source is pinned to feature/quote-generator-preview."
