@@ -73,6 +73,21 @@ The runtime additionally requires QUOTE_LIVE_APPROVED=e2e-verified for live mode
 - Local Worker emulation was blocked by environment network-interface restrictions. A Node preview harness uses the real API/rendering modules with in-memory local storage and payments disabled.
 - Cloud Browser could not access the local preview address. Branch-preview browser QA will be recorded separately when available.
 
+## Sandbox deployment status (10 October 2026)
+
+Verified through the connected Cloudflare account (API access via connector, not Wrangler):
+- Production Worker `service-business-repository` exists and was NOT modified or deployed.
+- Sandbox Worker `service-business-repository-sandbox` does NOT exist yet. Deployment needs an authenticated Wrangler session (API token with Workers Scripts, D1, R2 and Workers Routes edit) from an environment that can reach api.cloudflare.com.
+- D1 `spt-quotes-sandbox` (508f48d8-…072): migration 0001 applied; tables `quotes`, `quote_events`, index `quotes_expiry` and Wrangler's `d1_migrations` record created so `wrangler d1 migrations apply` will not re-apply it.
+- R2 `spt-quotes-sandbox-private` NOT created. The connector cannot set jurisdiction and creating it without `eu` would mismatch the binding (jurisdiction cannot be changed later). Create it in the dashboard (R2 > Create bucket > Specify jurisdiction: EU, no public access, lifecycle delete after 8 days) or `wrangler r2 bucket create spt-quotes-sandbox-private --jurisdiction eu`.
+- Rate limiter (namespace 3101, 30/60s) and cron `17 3 * * *` are config only; they take effect on sandbox deploy. Cost at test volumes is within D1/R2/Workers free allowances; cron triggers count against the account's cron limit.
+- `wrangler deploy --dry-run --env sandbox` resolves all bindings (640 KiB gzipped).
+- `QUOTE_SUPPORT_EMAIL` is still a placeholder. Checkout now stays closed and the address is hidden until it is a valid email.
+
+PayPal sandbox: not integrated yet. No secrets set (Worker absent; credentials must be entered by the owner with `wrangler secret put … --env sandbox`, never in chat). Webhook not registered (no HTTPS endpoint yet). No genuine PayPal sandbox transaction has been completed.
+
+Local browser QA (Playwright/Chromium, desktop + iPhone 13 + Pixel 7 emulation, payments disabled, in-memory storage; NOT real devices or real Cloudflare/PayPal): 50/50 checks passed — editor opens on 4 calculator runtimes without horizontal overflow, valid logo accepted, malformed/mismatched/>5 MB/>16 MP logos rejected with clear messages, A4 watermarked preview with embedded DejaVu fonts, Greek/Cyrillic text, logo and 2-page pagination, unpaid download refused (403), forged token refused (404), recovery link reopens the quote in a fresh browser context.
+
 ## Release gates still open
 
 - Real sandbox order approval/capture/webhook round trip and immediate download on the configured Worker.

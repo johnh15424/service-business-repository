@@ -7,7 +7,8 @@ const headers={'Cache-Control':'no-store, private','X-Content-Type-Options':'nos
 const json=(data,status=200)=>Response.json(data,{status,headers});
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(s))),b=>b.toString(16).padStart(2,'0')).join('');
 function available(env){return Boolean(env.QUOTE_DB&&env.QUOTE_FILES&&env.QUOTE_LIMITER);}
-function paymentReady(env){return available(env)&&paymentMode(env)!=='disabled'&&env.PAYPAL_CLIENT_ID&&env.PAYPAL_CLIENT_SECRET&&env.PAYPAL_MERCHANT_ID&&env.PAYPAL_WEBHOOK_ID&&env.QUOTE_SUPPORT_EMAIL;}
+const supportEmail=env=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.QUOTE_SUPPORT_EMAIL||'')?env.QUOTE_SUPPORT_EMAIL:null;
+function paymentReady(env){return available(env)&&paymentMode(env)!=='disabled'&&env.PAYPAL_CLIENT_ID&&env.PAYPAL_CLIENT_SECRET&&env.PAYPAL_MERCHANT_ID&&env.PAYPAL_WEBHOOK_ID&&supportEmail(env);}
 async function limitedBody(request,max=1600000){
   const reader=request.body?.getReader();if(!reader)throw Error('EMPTY_REQUEST');let size=0;const chunks=[];
   for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>max){await reader.cancel();throw Error('REQUEST_TOO_LARGE');}chunks.push(value);}
@@ -42,7 +43,7 @@ async function capture(env,q,api=paypal){
 }
 export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}={}) {
   const url=new URL(request.url),path=url.pathname;
-  if(path==='/api/quotes/config')return json({preview:available(env),checkout:Boolean(paymentReady(env)),mode:paymentMode(env),price:3,currency:'EUR',supportEmail:env.QUOTE_SUPPORT_EMAIL||null});
+  if(path==='/api/quotes/config')return json({preview:available(env),checkout:Boolean(paymentReady(env)),mode:paymentMode(env),price:3,currency:'EUR',supportEmail:supportEmail(env)});
   if(!available(env))return json({error:'Quote downloads are not yet available. You can still edit your quotation preview.'},503);
   try{
     const webhook=path==='/api/quotes/paypal-webhook';
