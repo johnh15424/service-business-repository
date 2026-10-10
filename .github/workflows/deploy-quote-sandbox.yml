@@ -1,0 +1,159 @@
+name: Deploy Quote Generator Sandbox
+
+# Manual trigger ONLY. There is deliberately no `push:` or `pull_request:`
+# trigger here — merging or pushing to PR #31 must never cause a deploy.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type the sandbox Worker name exactly to confirm: service-business-repository-sandbox'
+        required: true
+        type: string
+      sync_paypal_secrets:
+        description: 'Also upload PayPal Sandbox credentials from GitHub secrets to the Worker'
+        required: false
+        default: false
+        type: boolean
+
+# Read-only. This workflow never writes to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-quote-sandbox
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Validate and deploy sandbox Worker
+    runs-on: ubuntu-latest
+    # Scopes secrets and lets you add a required reviewer in
+    # Settings -> Environments -> sandbox for a manual approval gate.
+    environment: sandbox
+
+    steps:
+      # ---- Guard rails before anything is installed or deployed ----------
+      - name: Confirm deployment target
+        run: |
+          if [ "${{ inputs.confirm }}" != "service-business-repository-sandbox" ]; then
+            echo "::error::Confirmation text did not match. Got '${{ inputs.confirm }}'."
+            echo "Type the sandbox Worker name exactly to proceed."
+            exit 1
+          fi
+          echo "Confirmation accepted."
+
+      # GitHub only registers workflow_dispatch workflows that live on the
+      # default branch, so this may be launched from main. The deployed code
+      # is pinned by the checkout step below regardless of which ref launched
+      # it; this step only rejects launches from unexpected branches.
+      - name: Enforce launch ref
+        run: |
+          case "${{ github.ref }}" in
+            refs/heads/main|refs/heads/feature/quote-generator-preview)
+              echo "Launch ref accepted: ${{ github.ref }}" ;;
+            *)
+              echo "::error::This workflow may only be launched from main or feature/quote-generator-preview."
+              echo "Selected ref was '${{ github.ref }}'."
+              exit 1 ;;
+          esac
+          echo "Deployment source is pinned to feature/quote-generator-preview."
+
+      - name: Check out deployment source
+        uses: actions/checkout@v4
+        with:
+          ref: feature/quote-generator-preview
+
+      - name: Verify required Cloudflare secrets are present
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=0
+          [ -z "$CF_TOKEN" ]   && { echo "::error::Missing secret CLOUDFLARE_API_TOKEN"; missing=1; }
+          [ -z "$CF_ACCOUNT" ] && { echo "::error::Missing secret CLOUDFLARE_ACCOUNT_ID"; missing=1; }
+          [ "$missing" -eq 1 ] && exit 1
+          echo "Cloudflare credentials present."
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ---- Automated checks, same as Calculator QA ----------------------
+      - name: Syntax checks
+        run: npm run check
+
+      - name: Test suite
+        run: npm test
+
+      # ---- Config guard: worker name, env, bindings, EU jurisdiction ----
+      - name: Verify sandbox configuration
+        run: node scripts/verify-sandbox-config.mjs
+
+      - name: Confirm production Worker is not the deploy target
+        run: |
+          # Belt and braces: a dry run prints the resolved Worker name
+          # without uploading anything.
+          npx wrangler deploy --env sandbox --dry-run --outdir /tmp/dryrun 2>&1 | tee /tmp/dry.log
+          if grep -qE 'service-business-repository-sandbox' /tmp/dry.log; then
+            echo "Dry run resolves to the sandbox Worker."
+          else
+            echo "::warning::Could not confirm Worker name from dry-run output; the config guard above is authoritative."
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ---- Deploy --------------------------------------------------------
+      - name: Deploy sandbox Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --env sandbox
+
+      # ---- Optional: push PayPal Sandbox credentials as Worker secrets ---
+      # Values come from GitHub Actions secrets and are never written to
+      # the repository or printed. Skipped unless explicitly requested.
+      - name: Upload PayPal Sandbox credentials to Worker secrets
+        if: ${{ inputs.sync_paypal_secrets }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_SANDBOX_CLIENT_ID }}
+          PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_SANDBOX_CLIENT_SECRET }}
+          PAYPAL_MERCHANT_ID: ${{ secrets.PAYPAL_SANDBOX_MERCHANT_ID }}
+          PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_SANDBOX_WEBHOOK_ID }}
+        run: |
+          set -u
+          for name in PAYPAL_CLIENT_ID PAYPAL_CLIENT_SECRET PAYPAL_MERCHANT_ID PAYPAL_WEBHOOK_ID; do
+            value="${!name}"
+            if [ -z "$value" ]; then
+              echo "::warning::$name is empty; skipping."
+              continue
+            fi
+            printf '%s' "$value" | npx wrangler secret put "$name" --env sandbox
+            echo "Set $name"
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Quote Generator sandbox deployment"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| Worker | service-business-repository-sandbox |"
+            echo "| Production Worker | service-business-repository (untouched) |"
+            echo "| Source branch | feature/quote-generator-preview |"
+            echo "| D1 | spt-quotes-sandbox |"
+            echo "| R2 | spt-quotes-sandbox-private (EU jurisdiction) |"
+            echo "| Payment mode | sandbox (live payments disabled) |"
+            echo "| Result | ${{ job.status }} |"
+            echo ""
+            echo "Checkout stays closed until QUOTE_SUPPORT_EMAIL in wrangler.jsonc is a valid monitored address."
+          } >> "$GITHUB_STEP_SUMMARY"
