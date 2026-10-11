@@ -27,6 +27,7 @@ jobs:
   deploy:
     name: Validate and deploy sandbox Worker
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Scopes secrets and lets you add a required reviewer in
     # Settings -> Environments -> sandbox for a manual approval gate.
     environment: sandbox
@@ -64,6 +65,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: feature/quote-generator-preview
+          # Do not leave the GITHUB_TOKEN in .git/config for later steps
+          # (npm install scripts, wrangler) to read.
+          persist-credentials: false
 
       - name: Verify required Cloudflare secrets are present
         env:
@@ -96,19 +100,18 @@ jobs:
       - name: Verify sandbox configuration
         run: node scripts/verify-sandbox-config.mjs
 
-      - name: Confirm production Worker is not the deploy target
+      - name: Confirm resolved bindings with a dry run
         run: |
-          # Belt and braces: a dry run prints the resolved Worker name
-          # without uploading anything.
+          # No credentials needed: a dry run bundles locally and prints the
+          # bindings Wrangler would deploy, without uploading anything.
           npx wrangler deploy --env sandbox --dry-run --outdir /tmp/dryrun 2>&1 | tee /tmp/dry.log
-          if grep -qE 'service-business-repository-sandbox' /tmp/dry.log; then
-            echo "Dry run resolves to the sandbox Worker."
-          else
-            echo "::warning::Could not confirm Worker name from dry-run output; the config guard above is authoritative."
-          fi
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          for expected in 'spt-quotes-sandbox-private (eu)' 'QUOTE_PAYMENT_MODE ("sandbox")' 'QUOTE_DB (spt-quotes-sandbox)'; do
+            if ! grep -qF "$expected" /tmp/dry.log; then
+              echo "::error::Dry run did not resolve expected binding: $expected"
+              exit 1
+            fi
+          done
+          echo "Dry run resolves the sandbox bindings."
 
       # ---- Deploy --------------------------------------------------------
       - name: Deploy sandbox Worker
