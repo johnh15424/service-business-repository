@@ -88,6 +88,14 @@ PayPal sandbox: not integrated yet. No secrets set (Worker absent; credentials m
 
 Local browser QA (Playwright/Chromium, desktop + iPhone 13 + Pixel 7 emulation, payments disabled, in-memory storage; NOT real devices or real Cloudflare/PayPal): 50/50 checks passed — editor opens on 4 calculator runtimes without horizontal overflow, valid logo accepted, malformed/mismatched/>5 MB/>16 MP logos rejected with clear messages, A4 watermarked preview with embedded DejaVu fonts, Greek/Cyrillic text, logo and 2-page pagination, unpaid download refused (403), forged token refused (404), recovery link reopens the quote in a fresh browser context.
 
+## First sandbox deployment run (GitHub Actions)
+
+Workflow: `.github/workflows/deploy-quote-sandbox.yml` (manual only; must be on `main` to show a Run button — PR #37). It always deploys `feature/quote-generator-preview` with `--env sandbox` to `service-business-repository-sandbox`.
+
+Token: create the sandbox Worker once in the dashboard (empty Hello World named exactly `service-business-repository-sandbox`), then use an account API token with **Workers: Editor scoped to that single Worker** only. Creating a Worker needs product-level Workers Admin, which could also change production, so pre-creating it keeps the CI token unable to touch `service-business-repository`. Bindings to D1/R2 need no extra permissions; no zone/route permissions are needed (workers.dev only). If the dashboard only offers legacy permissions, use Account > Workers Scripts: Edit restricted to this account.
+
+GitHub secrets (Settings > Environments > sandbox): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and when ready `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET`, `PAYPAL_SANDBOX_MERCHANT_ID`, `PAYPAL_SANDBOX_WEBHOOK_ID`.
+
 ## Release gates still open
 
 - Real sandbox order approval/capture/webhook round trip and immediate download on the configured Worker.

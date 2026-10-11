@@ -20,3 +20,6 @@
 .hero-commercial-list{margin:0 0 12px;padding-left:20px}
 .hero-commercial-list li{margin:4px 0}
 .hero-commercial .micro{margin:0 0 12px}
+
+/* Keep product offers readable on narrow phones. */
+.button-link{overflow-wrap:anywhere;max-width:100%;box-sizing:border-box}.toolkit-proof{line-height:1.6}@media(max-width:420px){.free-paid-compare{grid-template-columns:1fr;gap:12px}.hero-commercial .button-link{font-size:15px;padding:14px}.directory-card .button-link{display:block;text-align:center}}
