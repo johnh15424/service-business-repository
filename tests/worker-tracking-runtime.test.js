@@ -16,7 +16,7 @@ test('injected tracking script runs and preserves checkout and event forwarding'
     transform(response) { return response; }
   };
   try {
-    await worker.fetch({}, {
+    await worker.fetch(new Request('https://servicepricingtools.com/dog-grooming-price-calculator/'), {
       ASSETS: { fetch: async () => new Response('', { headers: { 'content-type': 'text/html' } }) }
     });
   } finally {
@@ -29,7 +29,7 @@ test('injected tracking script runs and preserves checkout and event forwarding'
   const dataLayer = [];
   const context = vm.createContext({
     URLSearchParams,
-    window: { location: {search:''}, dataLayer, addEventListener: (name, fn) => listeners.set(name, fn) },
+    window: { location: {search:'', hostname:'servicepricingtools.com'}, dataLayer, addEventListener: (name, fn) => listeners.set(name, fn) },
     dataLayer,
     document: { addEventListener() {} },
     Date,

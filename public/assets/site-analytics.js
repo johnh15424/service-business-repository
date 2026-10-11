@@ -1,6 +1,9 @@
 
+  // Backstop for the Worker's host check: never measure off the live site.
+  var sptProductionHost = /^(www\.)?servicepricingtools\.com$/i.test(window.location.hostname);
+  if (!sptProductionHost) window['ga-disable-G-J3BBT6YZRB'] = true;
   window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
+  function gtag(){ if (sptProductionHost) dataLayer.push(arguments); }
   gtag('js', new Date());
   gtag('config', 'G-J3BBT6YZRB', {
     debug_mode: new URLSearchParams(window.location.search).get('spt_debug') === '1',
