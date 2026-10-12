@@ -10,7 +10,16 @@ let busy=false,paidTracked=false,paidShown=false,polls=0,timer=0,pdfUrl=null;
 // cookieless pings otherwise. Only the bare page path is reported, never the private link or customer data.
 const track=(event,extra={})=>{try{window.gtag?.('event',event,{product_type:'professional_quote',page_location:location.origin+location.pathname,page_referrer:'',...extra});}catch{}};
 // One purchase event per verified transaction on this device, so reloads and revisits never repeat it.
-const once=key=>{try{if(localStorage.getItem(key))return false;localStorage.setItem(key,'1');}catch{}return true;};
+// localStorage is the durable guard. sessionStorage is a second line of defence for browsers that block
+// it (private mode, blocked site data), where a bare localStorage guard silently fails open and lets a
+// refresh send the sale again. A hit in either store means this transaction was already counted.
+const stores=()=>{const open=[];for(const read of [()=>localStorage,()=>sessionStorage]){try{const s=read();if(s)open.push(s);}catch{}}return open;};
+const once=key=>{
+  const open=stores();
+  if(open.some(s=>{try{return s.getItem(key);}catch{return false;}}))return false;
+  open.forEach(s=>{try{s.setItem(key,'1');}catch{}});
+  return true;
+};
 fetch('/api/quotes/config').then(r=>r.json()).then(c=>{if(c.supportEmail){const a=document.createElement('a');a.href='mailto:'+c.supportEmail;a.textContent='Service Pricing Tools support';$('quote-support').replaceChildren(a);}}).catch(()=>{});
 async function request(action,method='GET',body){const r=await fetch(`/api/quotes/${match[1]}/${action}`,{method,headers:{Authorization:'Bearer '+match[2],...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});if(!r.ok){const d=await r.json().catch(()=>({}));const e=Error(d.error||'Please try again.');e.data=d;throw e;}return r;}
 
@@ -33,7 +42,18 @@ function showPaid(data){
   $('quote-heading').textContent='Payment successful!';$('quote-lead').hidden=false;
   $('quote-retry').hidden=true;$('quote-resume').hidden=true;status.textContent='';
   if(!paidShown){paidShown=true;preparePdf();}
-  if(!paidTracked&&data.transactionId&&Number(data.priceMinor)>0&&once('spt_purchase_'+data.transactionId)){const niche=data.niche?{niche:String(data.niche).slice(0,60)}:{},value=(Number(data.priceMinor)||0)/100;track('quote_payment_verified',{value,currency:'EUR',transaction_id:data.transactionId,...niche});track('purchase',{value,currency:'EUR',transaction_id:data.transactionId,...niche,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:value,quantity:1}]});paidTracked=true;}
+  if(!paidTracked&&data.transactionId&&Number(data.priceMinor)>0&&once('spt_purchase_'+data.transactionId)){
+    const niche=data.niche?{niche:String(data.niche).slice(0,60)}:{},value=(Number(data.priceMinor)||0)/100;
+    track('quote_payment_verified',{value,currency:'EUR',transaction_id:data.transactionId,...niche});
+    const sale={value,currency:'EUR',transaction_id:data.transactionId,...niche,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:value,quantity:1}]};
+    // Two names for one verified sale. `purchase` is the GA4 ecommerce event; `paid_purchase` is the
+    // event name behind the existing Google Ads primary conversion "servicepricingtools.com (web)
+    // paid_purchase", which until now nothing on the site ever emitted. Both carry the same
+    // transaction_id, so GA4 and Ads deduplicate a repeat and no second conversion action is needed.
+    track('purchase',sale);
+    track('paid_purchase',sale);
+    paidTracked=true;
+  }
 }
 // Checks the existing order only: the capture endpoint never creates an order or a second charge.
 async function check(){
