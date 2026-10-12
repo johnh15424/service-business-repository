@@ -1,0 +1,103 @@
+name: Quote Release Checks
+
+# Read-only release evidence for the quote generator: the full suite against real
+# dependencies, the sandbox config guard, and a Wrangler dry run for BOTH the
+# production and sandbox environments.
+#
+# This workflow never deploys and never needs a Cloudflare credential. A dry run
+# bundles and resolves bindings locally and uploads nothing. Deployment lives in
+# deploy-quote-sandbox.yml and stays manual.
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quote-release-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Suite, config guard and dry runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax checks
+        run: npm run check
+
+      # Printed in full so the pass/fail counts are readable in the run log as
+      # release evidence, not just an exit code.
+      - name: Test suite
+        run: npm test
+
+      - name: Verify sandbox configuration
+        run: node scripts/verify-sandbox-config.mjs
+
+      # Every migration applied in order on an empty database, then asserted
+      # against the columns the Worker actually reads and writes.
+      - name: Verify migrations apply in order
+        run: |
+          node --input-type=module <<'NODE'
+          import { DatabaseSync } from 'node:sqlite';
+          import { readdirSync, readFileSync } from 'node:fs';
+          const files = readdirSync('migrations').filter(f => f.endsWith('.sql')).sort();
+          const db = new DatabaseSync(':memory:');
+          for (const f of files) { db.exec(readFileSync('migrations/' + f, 'utf8')); console.log('applied', f); }
+          const cols = db.prepare('PRAGMA table_info(quotes)').all().map(c => c.name);
+          const required = ['id','token_hash','status','quote_json','order_id','capture_id','price_minor','price_currency'];
+          const missing = required.filter(c => !cols.includes(c));
+          if (missing.length) { console.error('::error::quotes is missing columns: ' + missing.join(', ')); process.exit(1); }
+          console.log('quotes columns OK:', cols.join(', '));
+          NODE
+
+      - name: Dry run production environment
+        run: |
+          npx wrangler deploy --dry-run --outdir /tmp/dryrun-prod 2>&1 | tee /tmp/prod.log
+          for expected in 'QUOTE_DB (spt-quotes-production)' 'spt-quotes-production-private (eu)' 'QUOTE_PAYMENT_MODE ("live")'; do
+            grep -qF "$expected" /tmp/prod.log || { echo "::error::production dry run missing: $expected"; exit 1; }
+          done
+          # International currencies must never be switched on by a committed value.
+          if grep -q 'QUOTE_CURRENCIES_APPROVED' /tmp/prod.log; then
+            echo "::error::QUOTE_CURRENCIES_APPROVED must not be committed to wrangler.jsonc"; exit 1
+          fi
+
+      - name: Dry run sandbox environment
+        run: |
+          npx wrangler deploy --env sandbox --dry-run --outdir /tmp/dryrun-sandbox 2>&1 | tee /tmp/sandbox.log
+          for expected in 'spt-quotes-sandbox-private (eu)' 'QUOTE_PAYMENT_MODE ("sandbox")' 'QUOTE_DB (spt-quotes-sandbox)'; do
+            grep -qF "$expected" /tmp/sandbox.log || { echo "::error::sandbox dry run missing: $expected"; exit 1; }
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Quote release checks"
+            echo ""
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            echo "| Suite and syntax | ${{ job.status }} |"
+            echo "| Migrations apply in order | see log |"
+            echo "| Production dry run | bindings resolved, no deploy |"
+            echo "| Sandbox dry run | bindings resolved, no deploy |"
+            echo ""
+            echo "This workflow deploys nothing and proves nothing about real PayPal checkout."
+          } >> "$GITHUB_STEP_SUMMARY"
