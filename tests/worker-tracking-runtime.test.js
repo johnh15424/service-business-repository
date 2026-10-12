@@ -29,7 +29,7 @@ test('injected tracking script runs and preserves checkout and event forwarding'
   const dataLayer = [];
   const context = vm.createContext({
     URLSearchParams,
-    window: { location: {search:''}, dataLayer, addEventListener: (name, fn) => listeners.set(name, fn) },
+    window: { location: {search:'',hostname:'servicepricingtools.com'}, dataLayer, addEventListener: (name, fn) => listeners.set(name, fn) },
     dataLayer,
     document: { addEventListener() {} },
     Date,

@@ -1,5 +1,7 @@
 import { handleQuoteApi, cleanExpiredQuotes, reconcilePendingCheckouts } from './quote-api.js';
-const GOOGLE_TAG_HTML = '<!-- Google tag (gtag.js) --><script src="/assets/site-analytics.js"></script><script async src="https://www.googletagmanager.com/gtag/js?id=G-J3BBT6YZRB"></script>';
+const PRODUCTION_HOSTS = new Set(['servicepricingtools.com', 'www.servicepricingtools.com']);
+const SITE_SCRIPT_HTML = '<script src="/assets/site-analytics.js"></script>';
+const GOOGLE_TAG_HTML = '<!-- Google tag (gtag.js) -->' + SITE_SCRIPT_HTML + '<script async src="https://www.googletagmanager.com/gtag/js?id=G-J3BBT6YZRB"></script>';
 // PayPal's JS SDK (card fields) needs its documented origins plus a per-response nonce for the
 // styles it injects; the nonce is passed to the SDK via data-csp-nonce instead of allowing 'unsafe-inline'.
 const PAYPAL = 'https://*.paypal.com https://*.paypalobjects.com';
@@ -27,7 +29,7 @@ export default {
     const rewritten = new HTMLRewriter()
       .on('head', {
         element(element) {
-          element.prepend(`<meta name="spt-csp-nonce" content="${nonce}">` + GOOGLE_TAG_HTML, { html: true });
+          element.prepend(`<meta name="spt-csp-nonce" content="${nonce}">` + (PRODUCTION_HOSTS.has(url.hostname) ? GOOGLE_TAG_HTML : SITE_SCRIPT_HTML), { html: true });
         }
       })
       .transform(response);
