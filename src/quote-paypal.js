@@ -1,3 +1,4 @@
+import { QUOTE_PRICE, quotePriceMinor, priceValue } from '../public/assets/quote-model.js';
 /** Credentials are Worker secrets. No provider credentials reach the browser. */
 // Dashboard values typed on phones often gain smart quotes, spaces or Unicode dashes.
 export function approvalState(value) {
@@ -14,18 +15,30 @@ export function paymentMode(env) {
 export async function paypal(env,path,{method='GET',body,idempotency}={}) {
   const mode=paymentMode(env);if(mode==='disabled')throw Error('PAYMENTS_DISABLED');
   const base=mode==='sandbox'?'https://api-m.sandbox.paypal.com':'https://api-m.paypal.com';
-  const auth=await fetch(base+'/v1/oauth2/token',{method:'POST',headers:{Authorization:'Basic '+btoa(env.PAYPAL_CLIENT_ID+':'+env.PAYPAL_CLIENT_SECRET),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials',signal:AbortSignal.timeout(15000)});
-  if(!auth.ok)throw Error('PROVIDER_AUTH');const token=await auth.json();
-  const res=await fetch(base+path,{method,headers:{Authorization:'Bearer '+token.access_token,'Content-Type':'application/json',...(idempotency?{'PayPal-Request-Id':idempotency}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(20000)});
+  const token=await accessToken(env,base);
+  const res=await fetch(base+path,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...(idempotency?{'PayPal-Request-Id':idempotency}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(20000)});
+  if(res.status===401)cachedToken=null;
   if(!res.ok)throw Error('PROVIDER_RETRY');return res.json();
 }
+// One OAuth token per isolate until shortly before it expires, instead of one per API call: halves outbound
+// requests, keeping scheduler runs within the Workers Free plan's 50 subrequests per invocation.
+let cachedToken=null;
+async function accessToken(env,base){
+  const key=base+'|'+env.PAYPAL_CLIENT_ID;
+  if(cachedToken?.key===key&&cachedToken.expires>Date.now())return cachedToken.value;
+  const auth=await fetch(base+'/v1/oauth2/token',{method:'POST',headers:{Authorization:'Basic '+btoa(env.PAYPAL_CLIENT_ID+':'+env.PAYPAL_CLIENT_SECRET),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials',signal:AbortSignal.timeout(15000)});
+  if(!auth.ok)throw Error('PROVIDER_AUTH');const t=await auth.json();
+  cachedToken={key,value:t.access_token,expires:Date.now()+Math.max(0,Number(t.expires_in||0)-300)*1000};
+  return cachedToken.value;
+}
+// Verifies against the price recorded when this quote's order was created, never the current list price.
 export function verifyPaidOrder(order,quote,merchantId) {
-  const units=order.purchase_units;
+  const units=order.purchase_units,expected=quotePriceMinor(quote),cents=v=>Math.round(Number(v)*100);
   if(order.id!==quote.order_id||order.status!=='COMPLETED'||order.intent!=='CAPTURE'||units?.length!==1)throw Error('PAYMENT_NOT_CONFIRMED');
   const u=units[0],caps=u.payments?.captures;
-  if(u.custom_id!==quote.id||u.payee?.merchant_id!==merchantId||u.amount?.currency_code!=='EUR'||Number(u.amount?.value)!==3||caps?.length!==1)throw Error('PAYMENT_MISMATCH');
+  if(u.custom_id!==quote.id||u.payee?.merchant_id!==merchantId||u.amount?.currency_code!=='EUR'||cents(u.amount?.value)!==expected||caps?.length!==1)throw Error('PAYMENT_MISMATCH');
   const c=caps[0];
-  if(c.status!=='COMPLETED'||c.amount?.currency_code!=='EUR'||Number(c.amount?.value)!==3||!c.id)throw Error('PAYMENT_NOT_CONFIRMED');
+  if(c.status!=='COMPLETED'||c.amount?.currency_code!=='EUR'||cents(c.amount?.value)!==expected||!c.id)throw Error('PAYMENT_NOT_CONFIRMED');
   return c.id;
 }
 export async function verifyWebhook(request,event,env,api=paypal) {
@@ -86,7 +99,7 @@ async function cardEvidence(env,base,token,fetchImpl){
   out+='|sdk_card:'+await sdkCard({});
   out+='|sdk_card_ios:'+await sdkCard({'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1','Accept-Language':'en-IE,en;q=0.9'});
   try{
-    const res=await fetchImpl(base+'/v2/payments/find-eligible-methods',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({customer:{country_code:'IE'},purchase_units:[{amount:{currency_code:'EUR',value:'3.00'}}]}),signal:AbortSignal.timeout(15000)});
+    const res=await fetchImpl(base+'/v2/payments/find-eligible-methods',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({customer:{country_code:'IE'},purchase_units:[{amount:{currency_code:'EUR',value:priceValue(QUOTE_PRICE.minor)}}]}),signal:AbortSignal.timeout(15000)});
     out+='|methods:'+(res.ok?flags(await res.json()).join(',').slice(0,400)||'none':'http'+res.status);
   }catch{out+='|methods:unreachable';}
   return out;

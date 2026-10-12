@@ -11,3 +11,8 @@ test('invalid dates, money, item counts and tax are rejected',()=>{for(const cha
 test('currency decimal precision supports EUR, JPY and KWD',()=>{assert.equal(currencyDigits('EUR'),2);assert.equal(currencyDigits('JPY'),0);assert.equal(currencyDigits('KWD'),3);});
 test('invalid calculator result cannot create a quote',()=>assert.throws(()=>calculatorSnapshot({result:null})));
 test('logo signatures reject SVG and disguised HTML',()=>{assert.throws(()=>sniffLogo(new TextEncoder().encode('<svg/>')));assert.throws(()=>validatePng('data:image/png;base64,PHN2Zz4='));assert.equal(sniffLogo(new TextEncoder().encode('%PDF-1.7')),'pdf');});
+test('calculator snapshot names the trade and the job type once',()=>{const doc=job=>({getElementById:id=>id==='jobType'&&job?{selectedOptions:[{textContent:job}]}:id==='country'?{value:'IE',selectedOptions:[{textContent:'Ireland'}]}:null});const r={preTax:100,total:123};
+assert.equal(calculatorSnapshot({niche:'window_cleaning',name:'Window Cleaning',result:r,currency:'EUR',document:doc('Standard residential clean')}).service,'Window Cleaning – Standard residential clean');
+assert.equal(calculatorSnapshot({niche:'window_cleaning',name:'Window Cleaning',result:r,currency:'EUR',document:doc('Window cleaning for offices')}).service,'Window cleaning for offices');
+assert.equal(calculatorSnapshot({niche:'window_cleaning',name:'Window Cleaning',result:r,currency:'EUR',document:doc(null)}).service,'Window Cleaning');
+assert.equal(calculatorSnapshot({niche:'x',name:'Window Cleaning',result:r,currency:'EUR',document:doc('Standard')}).amountMinor,10000);});

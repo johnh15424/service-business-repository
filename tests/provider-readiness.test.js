@@ -16,3 +16,11 @@ test('card evidence records the public client ID suffix only and survives PayPal
   const r=await providerReadiness(env,down);
   assert.match(r,/\|client:123456\|sdk_card:unparsed\|sdk_card_ios:unparsed\|methods:http403$/);assert.doesNotMatch(r,/AbCdEf|zzTopSecretValue/);
 });
+test('PayPal API calls reuse one OAuth token until it nears expiry, and drop it on 401',async()=>{
+  const {paypal}=await import('../src/quote-paypal.js');const real=globalThis.fetch;let tokens=0,calls=0,unauth=false;
+  globalThis.fetch=async url=>{if(String(url).endsWith('/oauth2/token')){tokens++;return Response.json({access_token:'t'+tokens,expires_in:32400});}calls++;return unauth?new Response('',{status:401}):Response.json({ok:true});};
+  try{const env={QUOTE_PAYMENT_MODE:'sandbox',PAYPAL_CLIENT_ID:'cache-test',PAYPAL_CLIENT_SECRET:'s'};
+    for(let i=0;i<5;i++)await paypal(env,'/v2/checkout/orders/X');assert.equal(tokens,1);assert.equal(calls,5);
+    unauth=true;await assert.rejects(paypal(env,'/v2/checkout/orders/X'));unauth=false;await paypal(env,'/v2/checkout/orders/X');assert.equal(tokens,2);
+  }finally{globalThis.fetch=real;}
+});

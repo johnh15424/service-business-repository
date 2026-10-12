@@ -1,7 +1,7 @@
 /** Local preview only. No payment credentials, no real checkout. */
 import http from 'node:http';import {readFile} from 'node:fs/promises';import {resolve,extname} from 'node:path';import {Readable} from 'node:stream';import {DatabaseSync} from 'node:sqlite';
 import {handleQuoteApi} from '../src/quote-api.js';
-const db=new DatabaseSync(':memory:');for(const f of ['0001_quotes.sql','0002_email_delivery.sql'])db.exec(await readFile('migrations/'+f,'utf8'));
+const db=new DatabaseSync(':memory:');for(const f of ['0001_quotes.sql','0002_email_delivery.sql','0003_quote_price.sql'])db.exec(await readFile('migrations/'+f,'utf8'));
 const prepare=(sql,args=[])=>({bind(...a){return prepare(sql,a)},async first(){return db.prepare(sql).get(...args)||null},async all(){return{results:db.prepare(sql).all(...args)}},async run(){return{meta:db.prepare(sql).run(...args)}}});
 const files=new Map(),root=resolve('public');
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.ttf':'font/ttf','.pdf':'application/pdf'};

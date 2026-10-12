@@ -1,7 +1,7 @@
 # Quote Generator launch contract
 
 ## Customer promise
-- €3 **one-time payment** for a branded, downloadable customer-specific PDF quotation.
+- €4 **one-time payment** (set once in `QUOTE_PRICE`, `public/assets/quote-model.js`; orders before the change were €3 and keep verifying at €3) for a branded, downloadable customer-specific PDF quotation.
 - No automatic subscription, no registration requirement, no implied VAT rate, no hidden billing.
 - Preview freely before checkout. Payment only becomes available when secure fulfilment is tested.
 - Quote, not tax invoice. Tax applicability and VAT registration must be selected/confirmed by the issuer.
@@ -18,7 +18,7 @@
 ## Payment release requirements
 1. Confirm a provider supports dynamic customer-specific checkout and a trustworthy verified callback/API.
 2. Never release final PDF based solely on browser return URL, query string or localStorage.
-3. Webhook signed verification, idempotent processing, exact €3 amount/currency/order verification.
+3. Webhook signed verification, idempotent processing, exact amount (the price recorded on the quote when its order was created), currency and order verification.
 4. Retry-safe PDF delivery with accessible error recovery and refunds where delivery fails.
 5. Protect customer data with retention limits and privacy notice, redact logs and secure rate limits.
 6. Test declined/cancelled/duplicate/replayed payments and tampered quote amounts.
@@ -35,7 +35,7 @@
 ## Commercial
 - Preserve €24.99 Payhip toolkits and existing free lead magnets.
 - Quote funnel event names: quote_builder_opened, quote_preview_updated, quote_checkout_started, quote_payment_verified, quote_pdf_delivered, quote_fulfilment_failed.
-- Distinguish €3 paid quote purchase from €24.99 toolkit purchase in GA4 and Ads.
+- Distinguish €4 paid quote purchase from €24.99 toolkit purchase in GA4 and Ads.
 - No sitewide production deployment until all release gates pass.
 
 ## Current status

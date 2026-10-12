@@ -3,7 +3,7 @@ import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';
 import {handleQuoteApi,hash,reconcilePendingCheckouts} from '../src/quote-api.js';
 import {normaliseEmail,deliveryMessage} from '../src/quote-email.js';
 const sample={niche:'house_cleaning',service:'Deep clean',country:'Ireland',currency:'EUR',business:{name:'Murphy & Sons',address:'12 Main Street\nLimerick',email:'hello@example.com',phone:'061 123456'},customer:{name:'Sample Customer',address:'5 Oak Avenue\nCork'},reference:'Q-2026-001',date:'2026-10-08',validDays:30,template:'classic',taxRegistered:false,taxRate:23,taxLabel:'VAT',items:[{description:'Deep cleaning service',amountMinor:10000}],terms:'',logo:null};
-const schema=['0001_quotes.sql','0002_email_delivery.sql'].map(f=>readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8')).join('\n');
+const schema=['0001_quotes.sql','0002_email_delivery.sql','0003_quote_price.sql'].map(f=>readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8')).join('\n');
 const id='12345678-1234-1234-1234-123456789012',token='a'.repeat(64),origin='https://test.example';
 const now=()=>Math.floor(Date.now()/1000);
 function dbAdapter(){const db=new DatabaseSync(':memory:');db.exec(schema);const wrap=(sql,args=[])=>({bind(...a){return wrap(sql,a)},async first(){return db.prepare(sql).get(...args)||null},async all(){return {results:db.prepare(sql).all(...args)}},async run(){return {meta:db.prepare(sql).run(...args)}}});return{prepare:wrap,batch:a=>Promise.all(a.map(x=>x.run())),db};}

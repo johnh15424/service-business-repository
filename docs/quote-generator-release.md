@@ -35,7 +35,7 @@ References:
 - Final and watermarked preview PDFs are generated before checkout. Final files are private R2 objects; only watermarked preview is exposed before payment.
 - An immutable PDF is identified by a random quote UUID and a 256-bit opaque bearer capability whose hash is stored in D1. This intentionally uses a server-validated opaque token instead of a client-trusted signed payload. It provides revocation, expiry and no customer data in the URL. Fragment tokens are NOT payment proof.
 - Create checkout uses one stable PayPal request ID per quote, a D1 conditional lock and one unique provider order. Ambiguous responses retry the same key within 5 hours, below the default 6-hour provider idempotency window. The same completed quote cannot start a second checkout.
-- Server captures approved orders; provider GET re-verifies order ID, custom quote ID, merchant, CAPTURE intent, completed status, exactly one capture and EUR 3.00. Return URL parameters are ignored as payment proof.
+- Server captures approved orders; provider GET re-verifies order ID, custom quote ID, merchant, CAPTURE intent, completed status, exactly one capture and the EUR amount recorded on the quote at order creation (EUR 4.00 now; EUR 3.00 for earlier orders). Return URL parameters are ignored as payment proof.
 - Webhooks use PayPal's signature verification endpoint. Approved/completed events are retry-safe. Refund/reversal events revoke access; every download also retrieves current capture status so a missed refund webhook cannot grant a new download.
 - No subscription, account creation, toolkit price change, MailerLite modification or advertising setting change.
 
