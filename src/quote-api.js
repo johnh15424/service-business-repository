@@ -1,6 +1,6 @@
 import { normaliseQuote } from '../public/assets/quote-model.js';
 import { renderQuote } from './quote-pdf.js';
-import { paypal, paymentMode, verifyPaidOrder, verifyWebhook } from './quote-paypal.js';
+import { paypal, paymentMode, verifyPaidOrder, verifyWebhook, providerReadiness } from './quote-paypal.js';
 const encoder=new TextEncoder();
 const now=()=>Math.floor(Date.now()/1000);
 const headers={'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
@@ -148,6 +148,10 @@ export async function reconcilePendingCheckouts(env,api=paypal){
   if(!available(env))return;
   // Heartbeat so a silent scheduler or missing configuration is visible in D1 (pruned after 7 days).
   await event(env,'cron','reconcile_run',now()+':'+(paymentReady(env)?'ready':'not_ready'));
+  // Hourly provider readiness record (one row per hour via the unique event key).
+  const hour=Math.floor(now()/3600);
+  if(!await env.QUOTE_DB.prepare('SELECT 1 FROM quote_events WHERE event_key=?').bind('cron:readiness:'+hour).first())
+    await env.QUOTE_DB.prepare('INSERT OR IGNORE INTO quote_events(event_key,quote_id,event,created_at) VALUES(?,?,?,?)').bind('cron:readiness:'+hour,'cron','readiness:'+await providerReadiness(env),now()).run();
   if(!paymentReady(env))return;
   const rows=await env.QUOTE_DB.prepare("SELECT * FROM quotes WHERE status='checkout' AND order_id IS NOT NULL AND created_at>? AND expires_at>? LIMIT 20").bind(now()-6*3600,now()).all();
   for(const q of rows.results){try{await capture(env,q,api);await event(env,q.id,'quote_payment_reconciled');}catch{/* failure code recorded by capture */}}

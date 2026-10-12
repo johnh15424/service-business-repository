@@ -1,0 +1,8 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {providerReadiness} from '../src/quote-paypal.js';
+const full={QUOTE_PAYMENT_MODE:'live',PAYPAL_CLIENT_ID:'id',PAYPAL_CLIENT_SECRET:'zzTopSecretValue',PAYPAL_MERCHANT_ID:'M',PAYPAL_WEBHOOK_ID:'WH1'};
+const events=['CHECKOUT.ORDER.APPROVED','PAYMENT.CAPTURE.COMPLETED','PAYMENT.CAPTURE.DENIED','PAYMENT.CAPTURE.REFUNDED','PAYMENT.CAPTURE.REVERSED'].map(name=>({name}));
+const fake=(hook,authOk=true)=>async url=>url.endsWith('/oauth2/token')?{ok:authOk,status:authOk?200:401,json:async()=>({access_token:'t'})}:{ok:Boolean(hook),status:hook?200:404,json:async()=>hook};
+test('reports missing secrets by position without values',async()=>{const r=await providerReadiness({QUOTE_PAYMENT_MODE:'live',PAYPAL_CLIENT_ID:'abc'});assert.equal(r,'mode:live|secrets:1000|approved:0');assert.doesNotMatch(r,/abc/);});
+test('confirms live credentials and the expected webhook',async()=>{const r=await providerReadiness(full,fake({url:'https://servicepricingtools.com/api/quotes/paypal-webhook',event_types:events}));assert.equal(r,'mode:live|secrets:1111|approved:0|oauth:ok|webhook_url:ok|webhook_events:5/5');assert.doesNotMatch(r,/zzTopSecretValue|WH1/);});
+test('flags wrong credentials, wrong webhook URL and missing events',async()=>{assert.match(await providerReadiness(full,fake(null,false)),/oauth:fail401$/);assert.match(await providerReadiness(full,fake(null)),/webhook:missing404$/);assert.match(await providerReadiness(full,fake({url:'https://x.workers.dev/api/quotes/paypal-webhook',event_types:events.slice(0,2)})),/webhook_url:mismatch\|webhook_events:2\/5$/);});
