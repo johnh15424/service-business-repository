@@ -54,7 +54,7 @@ const LIVE_HOSTS=new Set(['servicepricingtools.com','www.servicepricingtools.com
 export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}={}) {
   const url=new URL(request.url),path=url.pathname;
   if(env.QUOTE_PAYMENT_MODE==='live'&&!LIVE_HOSTS.has(url.hostname))env={QUOTE_PAYMENT_MODE:'disabled'};
-  if(path==='/api/quotes/config')return json({preview:available(env),checkout:Boolean(paymentReady(env)),mode:paymentMode(env),price:3,currency:'EUR',supportEmail:supportEmail(env)});
+  if(path==='/api/quotes/config'){await recordReadiness(env).catch(()=>{});return json({preview:available(env),checkout:Boolean(paymentReady(env)),mode:paymentMode(env),price:3,currency:'EUR',supportEmail:supportEmail(env)});}
   if(!available(env))return json({error:'Quote downloads are not yet available. You can still edit your quotation preview.'},503);
   try{
     const webhook=path==='/api/quotes/paypal-webhook';
@@ -144,14 +144,18 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
 }
 // Captures approved orders whose buyer never returned to the site (closed tab, broken redirect, missed
 // webhook). Only recent checkouts are checked: unapproved PayPal orders lapse after about three hours.
+// Hourly content-free provider readiness record, written by the scheduler or the first config request.
+async function recordReadiness(env){
+  if(!env.QUOTE_DB)return;
+  const key='cron:readiness:'+Math.floor(now()/3600);
+  if(await env.QUOTE_DB.prepare('SELECT 1 FROM quote_events WHERE event_key=?').bind(key).first())return;
+  await env.QUOTE_DB.prepare('INSERT OR IGNORE INTO quote_events(event_key,quote_id,event,created_at) VALUES(?,?,?,?)').bind(key,'cron','readiness:'+await providerReadiness(env),now()).run();
+}
 export async function reconcilePendingCheckouts(env,api=paypal){
   if(!available(env))return;
   // Heartbeat so a silent scheduler or missing configuration is visible in D1 (pruned after 7 days).
   await event(env,'cron','reconcile_run',now()+':'+(paymentReady(env)?'ready':'not_ready'));
-  // Hourly provider readiness record (one row per hour via the unique event key).
-  const hour=Math.floor(now()/3600);
-  if(!await env.QUOTE_DB.prepare('SELECT 1 FROM quote_events WHERE event_key=?').bind('cron:readiness:'+hour).first())
-    await env.QUOTE_DB.prepare('INSERT OR IGNORE INTO quote_events(event_key,quote_id,event,created_at) VALUES(?,?,?,?)').bind('cron:readiness:'+hour,'cron','readiness:'+await providerReadiness(env),now()).run();
+  await recordReadiness(env);
   if(!paymentReady(env))return;
   const rows=await env.QUOTE_DB.prepare("SELECT * FROM quotes WHERE status='checkout' AND order_id IS NOT NULL AND created_at>? AND expires_at>? LIMIT 20").bind(now()-6*3600,now()).all();
   for(const q of rows.results){try{await capture(env,q,api);await event(env,q.id,'quote_payment_reconciled');}catch{/* failure code recorded by capture */}}
