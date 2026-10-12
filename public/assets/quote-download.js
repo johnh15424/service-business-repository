@@ -32,7 +32,7 @@ function showPaid(data){
   $('quote-heading').textContent='Payment successful!';$('quote-lead').hidden=false;
   $('quote-retry').hidden=true;$('quote-resume').hidden=true;status.textContent='';
   if(!paidShown){paidShown=true;preparePdf();}
-  if(!paidTracked){const niche=data.niche?{niche:String(data.niche).slice(0,60)}:{};track('quote_payment_verified',{value:3,currency:'EUR',transaction_id:data.transactionId,...niche});track('purchase',{value:3,currency:'EUR',transaction_id:data.transactionId,...niche,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:3,quantity:1}]});paidTracked=true;}
+  if(!paidTracked){const niche=data.niche?{niche:String(data.niche).slice(0,60)}:{},value=(Number(data.priceMinor)||0)/100;track('quote_payment_verified',{value,currency:'EUR',transaction_id:data.transactionId,...niche});track('purchase',{value,currency:'EUR',transaction_id:data.transactionId,...niche,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:value,quantity:1}]});paidTracked=true;}
 }
 // Checks the existing order only: the capture endpoint never creates an order or a second charge.
 async function check(){

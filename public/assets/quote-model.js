@@ -1,5 +1,11 @@
 /** Allowlisted customer-facing data only. Shared by editor and Worker. */
-export const QUOTE_PRICE = Object.freeze({currency:'EUR', minor:300});
+// The single price of a professional quotation PDF, used by the Worker (orders and verification) and the editor.
+export const QUOTE_PRICE = Object.freeze({currency:'EUR', minor:400});
+// Orders created before prices were stored per quote were all EUR 3.00 and are verified at that amount.
+export const LEGACY_QUOTE_PRICE_MINOR = 300;
+export const quotePriceMinor = quote => Number.isInteger(quote?.price_minor) ? quote.price_minor : LEGACY_QUOTE_PRICE_MINOR;
+export const priceValue = minor => (minor / 100).toFixed(2);
+export const priceLabel = minor => '€' + (minor % 100 ? (minor / 100).toFixed(2) : String(minor / 100));
 export function currencyDigits(currency) {
   if (!/^[A-Z]{3}$/.test(currency) || (Intl.supportedValuesOf && !Intl.supportedValuesOf('currency').includes(currency))) throw Error('Choose a recognised currency.');
   return new Intl.NumberFormat('en',{style:'currency',currency}).resolvedOptions().maximumFractionDigits;
