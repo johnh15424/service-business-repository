@@ -1,0 +1,13 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {normaliseQuote,calculatorSnapshot,currencyDigits} from '../public/assets/quote-model.js';
+import {sniffLogo} from '../public/assets/quote-logo.js';
+import {validatePng} from '../src/quote-pdf.js';
+export const sample={niche:'house_cleaning',service:'Deep clean',country:'Ireland',currency:'EUR',business:{name:'Murphy & Sons',address:'12 Main Street\nLimerick',email:'hello@example.com',phone:'061 123456'},customer:{name:'Sample Customer',address:'5 Oak Avenue\nCork'},reference:'Q-2026-001',date:'2026-10-08',validDays:30,template:'classic',taxRegistered:false,taxRate:23,taxLabel:'VAT',items:[{description:'Deep cleaning service',amountMinor:10000}],terms:'Quotation valid for 30 days. Work scheduled by agreement.',logo:null};
+test('non-VAT businesses never charge tax by country or rate alone',()=>{const q=normaliseQuote(sample);assert.equal(q.taxMinor,0);assert.equal(q.totalMinor,10000);});
+test('VAT calculations use rounded minor units and ignore forged totals',()=>{const q=normaliseQuote({...sample,taxRegistered:true,totalMinor:1,items:[{description:'A',amountMinor:101},{description:'B',amountMinor:202}]});assert.equal(q.taxMinor,70);assert.equal(q.totalMinor,373);});
+test('internal cost fields are stripped from every part of a quote',()=>{const q=normaliseQuote({...sample,margin:90,labourCost:10,business:{...sample.business,profit:80},items:[{description:'Service',amountMinor:100,margin:2}]});assert.doesNotMatch(JSON.stringify(q),/margin|labourCost|profit/);});
+test('invalid dates, money, item counts and tax are rejected',()=>{for(const change of [{date:'2026-02-30'},{taxRate:101},{items:[]},{items:[{description:'A',amountMinor:1.2}]},{currency:'FAK'},{validDays:0}])assert.throws(()=>normaliseQuote({...sample,...change}));});
+test('currency decimal precision supports EUR, JPY and KWD',()=>{assert.equal(currencyDigits('EUR'),2);assert.equal(currencyDigits('JPY'),0);assert.equal(currencyDigits('KWD'),3);});
+test('invalid calculator result cannot create a quote',()=>assert.throws(()=>calculatorSnapshot({result:null})));
+test('logo signatures reject SVG and disguised HTML',()=>{assert.throws(()=>sniffLogo(new TextEncoder().encode('<svg/>')));assert.throws(()=>validatePng('data:image/png;base64,PHN2Zz4='));assert.equal(sniffLogo(new TextEncoder().encode('%PDF-1.7')),'pdf');});

@@ -15,3 +15,4 @@ test('sitewide GA4 forwarding covers calculator and commercial funnel events',()
 test('Google tag decorates Payhip links for cross-domain attribution',()=>{const worker=read('public/assets/site-analytics.js');assert.ok(worker.includes("linker: { domains: ['servicepricingtools.com', 'payhip.com'] }"));});
 
 test('paid Payhip CTAs use direct checkout',()=>{const worker=read('public/assets/site-analytics.js');assert.match(worker,/payhip\.com\/buy\?link=/);assert.match(worker,/data-paid-cta/);assert.match(worker,/data-commercial-paid/);});
+test('CSP lets the quote editor show locally converted logo previews',()=>{const h=read('public/_headers');assert.match(h,/img-src 'self' data:/);assert.match(h,/object-src 'none'/);assert.doesNotMatch(h,/script-src[^;]*'unsafe-inline'/);});

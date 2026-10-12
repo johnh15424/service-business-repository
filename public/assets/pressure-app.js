@@ -1,3 +1,5 @@
+import { calculatorSnapshot } from './quote-model.js';
+import { mountQuotePreview } from './quote-preview.js';
 import {countries,provinces,currencies,jobs,reviewed} from './pressure-profiles.js';
 import { mountCompactPaidCta } from './result-cta.js';
 const $=id=>document.getElementById(id);
@@ -86,3 +88,5 @@ mountCompactPaidCta('pressure_washing');
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');
 setCountry();applyExample();
+
+mountQuotePreview({name:'Pressure Washing',niche:'pressure_washing',getSnapshot:()=>calculatorSnapshot({niche:'pressure_washing',name:'Pressure Washing',result:current?.result,currency,document})});

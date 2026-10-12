@@ -56,3 +56,10 @@
   window.addEventListener('calculator:conversion', forwardCommercialEvent);
   window.addEventListener('commercial:conversion', forwardCommercialEvent);
   window.addEventListener('funnel:conversion', forwardCommercialEvent);
+  window.addEventListener('quote:conversion', function(event) {
+    var d = event.detail || {};
+    if (!/^quote_[a-z_]+$/.test(String(d.event || ''))) return;
+    var p = {product_type:'professional_quote'};
+    ['niche','value','currency','transaction_id','items'].forEach(function(k) { if(d[k] !== undefined) p[k] = d[k]; });
+    gtag('event', d.event, p);
+  });

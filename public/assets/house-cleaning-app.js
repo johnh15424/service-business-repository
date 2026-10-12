@@ -1,3 +1,5 @@
+import { calculatorSnapshot } from './quote-model.js';
+import { mountQuotePreview } from './quote-preview.js';
 import {countries,provinces,currencies,jobs,reviewed} from './house-cleaning-profiles.js';
 import { mountCompactPaidCta } from './result-cta.js';
 import { nicheById } from './niche-registry.js';
@@ -90,3 +92,5 @@ mountCompactPaidCta('house_cleaning');
 document.querySelectorAll('[data-paid-cta]').forEach(link=>link.addEventListener('click',()=>track('paid_cta_clicked',link.dataset.paidCta)));
 track('calculator_viewed');
 setCountry();applyExample();
+
+mountQuotePreview({name:'House Cleaning',niche:'house_cleaning',getSnapshot:()=>calculatorSnapshot({niche:'house_cleaning',name:'House Cleaning',result:current?.result,currency,document})});
