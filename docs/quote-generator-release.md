@@ -109,10 +109,13 @@ verification. Setting it to `USD,GBP` on the deployed Worker turns those on. It 
 committed to `wrangler.jsonc`, and a test fails if it ever is. A code with no price point in
 `CHECKOUT_PRICES` can never be enabled however the variable is spelled.
 
-### Proposed price points — OWNER APPROVAL REQUIRED
+### Price points — APPROVED BY OWNER, 12 October 2026
 
-These sit in `CHECKOUT_PRICES` (`public/assets/quote-model.js`) and are inert until approved. ECB
-reference rates for 12 October 2026: EUR/USD 1.1181, EUR/GBP 0.84478, so EUR 4.00 is USD 4.47 / GBP 3.38.
+USD 4.99, GBP 3.49 and EUR 4.00 are approved. They sit in `CHECKOUT_PRICES`
+(`public/assets/quote-model.js`). Approval of the amounts is not activation: USD and GBP remain inert
+until `QUOTE_CURRENCIES_APPROVED` is set on the deployed Worker, which is gated on the sandbox evidence
+below. ECB reference rates for 12 October 2026: EUR/USD 1.1181, EUR/GBP 0.84478, so EUR 4.00 is
+USD 4.47 / GBP 3.38.
 
 | Currency | Proposed | Straight conversion | In EUR at today's rate | Why |
 | --- | --- | --- | --- | --- |
@@ -120,9 +123,8 @@ reference rates for 12 October 2026: EUR/USD 1.1181, EUR/GBP 0.84478, so EUR 4.0
 | USD | 4.99 | 4.47 | 4.46 | Standard price point in the main target market; the ~12% margin over conversion absorbs PayPal's cross-border and FX spread, which lands on us when we settle to a EUR balance. |
 | GBP | 3.49 | 3.38 | 4.13 | Nearest clean point above conversion; keeps UK within a few cent of the euro price. |
 
-Alternatives if a tighter match to EUR 4.00 is preferred: USD 4.49 (EUR 4.02) and GBP 3.99 (EUR 4.72).
-Changing either number is a one-line edit; prices are not negotiated at runtime and never come from the
-browser. Decide this against PayPal's cross-border fees on the actual merchant account, not the rate alone.
+Prices are not negotiated at runtime and never come from the browser. Changing a number later is a
+one-line edit plus a test update.
 
 ### Behaviour
 
@@ -150,11 +152,13 @@ browser. Decide this against PayPal's cross-border fees on the actual merchant a
 
 ### Owner actions
 
-1. Approve or amend the USD and GBP price points above.
+1. ~~Approve or amend the USD and GBP price points above.~~ Done, 12 October 2026.
 2. Confirm on the PayPal merchant account whether USD and GBP are **received** currencies or auto-converted
    to the EUR balance, and at what conversion spread. PayPal supports all three for Orders v2
    (25 currencies; EUR, USD and GBP are all two-decimal), but whether this account holds balances or
-   converts on receipt is account-specific and changes the margin on the table above.
+   converts on receipt is account-specific and changes the margin on the table above. STILL OPEN: no
+   PayPal credential exists in any environment reachable from CI or an agent session, so this cannot be
+   answered from code.
 3. Review the seller tax treatment of charging non-EUR for the quotation-generation service.
 4. After sandbox e2e in all three currencies, set `QUOTE_CURRENCIES_APPROVED=USD,GBP` on the Worker
    (`npx wrangler secret put` is not needed; it is a plain var). Leave it unset to stay EUR-only.
