@@ -67,9 +67,9 @@ export function mountQuotePreview({name='Service',niche=name,getSnapshot}={}) {
   });
   async function pay(method){if(!prepared||busy)return;busy=true;setPay(true);try{const result=await(await request(`/api/quotes/${prepared.id}/checkout`,{method:'POST',headers:{Authorization:'Bearer '+prepared.token,'Content-Type':'application/json'},body:JSON.stringify({method})})).json();quoteEvent('quote_checkout_started',niche,{value:3,currency:'EUR',payment_method:method});location.assign(result.url);}catch(e){setStatus(e.message);setPay(false);}finally{busy=false;}}
   function resetCard(){setCardAvailable(false);groups.forEach(g=>{g.panel.hidden=true;g.panel.replaceChildren();});cardFields=null;cardPanel=null;}
-  function loadSdk(clientId){return sdk||(sdk=new Promise((resolve,reject)=>{const s=document.createElement('script'),nonce=document.querySelector('meta[name="spt-csp-nonce"]')?.content;s.src='https://www.paypal.com/sdk/js?'+new URLSearchParams({'client-id':clientId,components:'card-fields',currency:'EUR',intent:'capture'});if(nonce){s.nonce=nonce;s.setAttribute('data-csp-nonce',nonce);}s.onload=()=>window.paypal?.CardFields?resolve(window.paypal):reject(Error('unavailable'));s.onerror=()=>{sdk=null;reject(Error('unavailable'));};document.head.append(s);}));}
+  function loadSdk(clientId){return sdk||(sdk=new Promise((resolve,reject)=>{const s=document.createElement('script'),nonce=document.querySelector('meta[name="spt-csp-nonce"]')?.content;s.src='https://www.paypal.com/sdk/js?'+new URLSearchParams({'client-id':clientId,components:'card-fields,funding-eligibility',currency:'EUR',intent:'capture'});if(nonce){s.nonce=nonce;s.setAttribute('data-csp-nonce',nonce);}s.onload=()=>window.paypal?.CardFields?resolve(window.paypal):reject(Error('unavailable'));s.onerror=()=>{sdk=null;reject(Error('unavailable'));};document.head.append(s);}));}
   // Content-free diagnostic so a hidden card option can be explained from the server side.
-  const report=(quote,result)=>fetch(`/api/quotes/${quote.id}/card-check`,{method:'POST',headers:{Authorization:'Bearer '+quote.token},body:result+(cspBlocked&&result!=='eligible'?':'+cspBlocked:'')}).catch(()=>{});
+  const report=(quote,result,detail)=>fetch(`/api/quotes/${quote.id}/card-check`,{method:'POST',headers:{Authorization:'Bearer '+quote.token},body:result+(cspBlocked&&result!=='eligible'?':'+cspBlocked:detail?':'+detail:'')}).catch(()=>{});
   const cardFailed='Card payment was not completed and no payment was taken. Check your details and try again, or pay with PayPal.';
   async function setupCard(){
     resetCard();const quote=prepared;if(!quote?.checkout)return;
@@ -81,7 +81,7 @@ export function mountQuotePreview({name='Service',niche=name,getSnapshot}={}) {
         onApprove:async()=>{setStatus('Confirming payment…');try{await request(`/api/quotes/${quote.id}/capture`,{method:'POST',headers:{Authorization:'Bearer '+quote.token}});}catch{/* the download page re-checks and the server reconciles */}location.assign('/quote-download/#'+quote.id+'.'+quote.token);},
         onError:()=>{setStatus(cardFailed);busy=false;setPay(false);}
       });
-      const eligible=fields.isEligible();report(quote,eligible?'eligible':'ineligible');
+      const eligible=fields.isEligible(),card=eligible?'':typeof paypal.isFundingEligible!=='function'?'no-api':paypal.isFundingEligible('card')?'card-eligible':'card-ineligible';report(quote,eligible?'eligible':'ineligible',card);
       if(eligible&&quote===prepared){cardFields=fields;setCardAvailable(true);}
     }catch{report(quote,'sdk_failed');}
   }
