@@ -33,10 +33,10 @@ async function capture(env,q,api=paypal){
   if(!q.order_id)throw Error('NO_CHECKOUT');
   if(['refunded','reversed'].includes(q.status))throw Error('ENTITLEMENT_REVOKED');
   if(q.status==='paid')return;
-  // Final file must exist before any capture request can charge the customer.
-  if(!await env.QUOTE_FILES.head(q.id+'/final.pdf'))throw Error('PDF_UNAVAILABLE');
   let providerStatus='UNKNOWN';
   try{
+    // Final file must exist before any capture request can charge the customer.
+    if(!await env.QUOTE_FILES.head(q.id+'/final.pdf'))throw Error('PDF_UNAVAILABLE');
     const order=await api(env,'/v2/checkout/orders/'+q.order_id);providerStatus=order.status||'UNKNOWN';
     if(order.status==='APPROVED'){
       try{await api(env,'/v2/checkout/orders/'+q.order_id+'/capture',{method:'POST',body:{},idempotency:q.id+'-capture'});}catch{/* Reconcile an ambiguous timeout rather than charging again. */}
@@ -145,13 +145,16 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
 // Captures approved orders whose buyer never returned to the site (closed tab, broken redirect, missed
 // webhook). Only recent checkouts are checked: unapproved PayPal orders lapse after about three hours.
 export async function reconcilePendingCheckouts(env,api=paypal){
-  if(!available(env)||!paymentReady(env))return;
+  if(!available(env))return;
+  // Heartbeat so a silent scheduler or missing configuration is visible in D1 (pruned after 7 days).
+  await event(env,'cron','reconcile_run',now()+':'+(paymentReady(env)?'ready':'not_ready'));
+  if(!paymentReady(env))return;
   const rows=await env.QUOTE_DB.prepare("SELECT * FROM quotes WHERE status='checkout' AND order_id IS NOT NULL AND created_at>? AND expires_at>? LIMIT 20").bind(now()-6*3600,now()).all();
   for(const q of rows.results){try{await capture(env,q,api);await event(env,q.id,'quote_payment_reconciled');}catch{/* failure code recorded by capture */}}
 }
 export async function cleanExpiredQuotes(env){
   if(!env.QUOTE_DB||!env.QUOTE_FILES)return;
   const rows=await env.QUOTE_DB.prepare('SELECT id FROM quotes WHERE expires_at<? LIMIT 100').bind(now()).all();
-  await env.QUOTE_DB.prepare("DELETE FROM quote_events WHERE quote_id='webhook' AND created_at<?").bind(now()-7*86400).run();
+  await env.QUOTE_DB.prepare("DELETE FROM quote_events WHERE quote_id IN ('webhook','cron') AND created_at<?").bind(now()-7*86400).run();
   for(const {id}of rows.results){await env.QUOTE_FILES.delete([id+'/final.pdf',id+'/preview.pdf']);await env.QUOTE_DB.batch([env.QUOTE_DB.prepare('DELETE FROM quote_events WHERE quote_id=?').bind(id),env.QUOTE_DB.prepare('DELETE FROM quotes WHERE id=?').bind(id)]);}
 }
