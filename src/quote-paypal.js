@@ -72,13 +72,19 @@ const flags=(value,path='',out=[])=>{
 };
 async function cardEvidence(env,base,token,fetchImpl){
   let out='|client:'+String(env.PAYPAL_CLIENT_ID).slice(-6);
-  try{
-    const res=await fetchImpl('https://www.paypal.com/sdk/js?'+new URLSearchParams({'client-id':env.PAYPAL_CLIENT_ID,components:'card-fields',currency:'EUR',intent:'capture'}),{signal:AbortSignal.timeout(15000)});
-    const text=res.ok?(await res.text()).replaceAll('\\"','"'):'';
-    const at=text.search(/"card"\s*:\s*\{\s*"eligible"/),win=at<0?'':text.slice(at,at+600);
-    const flag=n=>win.match(new RegExp(`"${n}"\\s*:\\s*(true|false)`))?.[1]??'?';
-    out+='|sdk_card:'+(!res.ok?'http'+res.status:at<0?'unparsed':`eligible=${flag('eligible')},branded=${flag('branded')}`);
-  }catch{out+='|sdk_card:unreachable';}
+  // Same SDK request as the site makes, once plainly and once as iPhone Safari in Ireland, because PayPal
+  // computes eligibility per request (user agent, language, buyer location).
+  const sdkCard=async headers=>{
+    try{
+      const res=await fetchImpl('https://www.paypal.com/sdk/js?'+new URLSearchParams({'client-id':env.PAYPAL_CLIENT_ID,components:'card-fields,funding-eligibility',currency:'EUR',intent:'capture'}),{headers,signal:AbortSignal.timeout(15000)});
+      const text=res.ok?(await res.text()).replaceAll('\\"','"'):'';
+      const at=text.search(/"card"\s*:\s*\{\s*"eligible"/),win=at<0?'':text.slice(at,at+600);
+      const flag=n=>win.match(new RegExp(`"${n}"\\s*:\\s*(true|false)`))?.[1]??'?';
+      return !res.ok?'http'+res.status:at<0?'unparsed':`eligible=${flag('eligible')},branded=${flag('branded')}`;
+    }catch{return 'unreachable';}
+  };
+  out+='|sdk_card:'+await sdkCard({});
+  out+='|sdk_card_ios:'+await sdkCard({'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1','Accept-Language':'en-IE,en;q=0.9'});
   try{
     const res=await fetchImpl(base+'/v2/payments/find-eligible-methods',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({customer:{country_code:'IE'},purchase_units:[{amount:{currency_code:'EUR',value:'3.00'}}]}),signal:AbortSignal.timeout(15000)});
     out+='|methods:'+(res.ok?flags(await res.json()).join(',').slice(0,400)||'none':'http'+res.status);
