@@ -37,8 +37,12 @@ async function capture(env,q,api=paypal){
   try{
     // Final file must exist before any capture request can charge the customer.
     if(!await env.QUOTE_FILES.head(q.id+'/final.pdf'))throw Error('PDF_UNAVAILABLE');
-    const order=await api(env,'/v2/checkout/orders/'+q.order_id);providerStatus=order.status||'UNKNOWN';
-    if(order.status==='APPROVED'){
+    const order=await api(env,'/v2/checkout/orders/'+q.order_id),card=Boolean(order.payment_source?.card);
+    providerStatus=(order.status||'UNKNOWN')+(card?'+CARD':'');
+    // Card fields attach the card to the order without moving it to APPROVED; PayPal's documented flow
+    // captures straight from onApprove. PayPal still refuses to capture anything the payer did not authorise,
+    // and fulfil() below verifies the completed €3 EUR capture to this merchant before granting the PDF.
+    if(order.status==='APPROVED'||(order.status==='CREATED'&&card)){
       try{await api(env,'/v2/checkout/orders/'+q.order_id+'/capture',{method:'POST',body:{},idempotency:q.id+'-capture'});}catch{/* Reconcile an ambiguous timeout rather than charging again. */}
     }
     await fulfil(env,q,api);
