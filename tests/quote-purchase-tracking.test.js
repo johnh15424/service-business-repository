@@ -104,6 +104,28 @@ test('a verified EUR 4 payment sends both the GA4 purchase and the Ads paid_purc
   assert.equal(purchase[0].params.transaction_id, paid[0].params.transaction_id);
 });
 
+test('the purchase is reported in the currency actually charged, not the page default', async () => {
+  // GA4 and Ads revenue must match the PayPal settlement. The currency comes from the quote row the
+  // server verified the capture against, so a US buyer's sale is never filed as euro.
+  for (const [currency, priceMinor, value] of [['USD', 499, 4.99], ['GBP', 349, 3.49], ['EUR', 400, 4]]) {
+    const { events } = await load({ statusBody: { ...PAID, currency, priceMinor } });
+    for (const name of ['purchase', 'paid_purchase', 'quote_payment_verified']) {
+      const [event] = named(events, name);
+      assert.equal(event.params.currency, currency, `${name} currency`);
+      assert.equal(event.params.value, value, `${name} value`);
+    }
+    assert.equal(JSON.parse(JSON.stringify(named(events, 'purchase')[0].params.items))[0].price, value, 'the item price matches');
+  }
+});
+
+test('a missing or malformed currency falls back to EUR rather than reporting nothing', async () => {
+  // Orders created before the currency column existed report no currency; they were all euro.
+  for (const currency of [undefined, null, '', 'eur', 'EUROS', 42]) {
+    const { events } = await load({ statusBody: { ...PAID, currency } });
+    assert.equal(named(events, 'purchase')[0].params.currency, 'EUR', String(currency));
+  }
+});
+
 test('the recorded price is used, so historical EUR 3 orders are not reported as EUR 4', async () => {
   const { events } = await load({ statusBody: { ...PAID, priceMinor: 300 } });
   assert.equal(named(events, 'purchase')[0].params.value, 3);

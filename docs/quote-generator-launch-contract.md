@@ -2,6 +2,8 @@
 
 ## Customer promise
 - €4 **one-time payment** (set once in `QUOTE_PRICE`, `public/assets/quote-model.js`; orders before the change were €3 and keep verifying at €3) for a branded, downloadable customer-specific PDF quotation.
+- The amount and currency the buyer will be charged are shown before payment, in the currency they will be charged. The currency we are paid in is independent of the currency printed on the quotation document they are buying.
+- Non-EUR price points are offered only where the owner has approved them (`QUOTE_CURRENCIES_APPROVED`). Where a visitor's local currency is not offered, the EUR price is charged and the page says so before payment.
 - No automatic subscription, no registration requirement, no implied VAT rate, no hidden billing.
 - Preview freely before checkout. Payment only becomes available when secure fulfilment is tested.
 - Quote, not tax invoice. Tax applicability and VAT registration must be selected/confirmed by the issuer.
@@ -18,10 +20,10 @@
 ## Payment release requirements
 1. Confirm a provider supports dynamic customer-specific checkout and a trustworthy verified callback/API.
 2. Never release final PDF based solely on browser return URL, query string or localStorage.
-3. Webhook signed verification, idempotent processing, exact amount (the price recorded on the quote when its order was created), currency and order verification.
+3. Webhook signed verification, idempotent processing, exact amount and currency (both recorded on the quote when its order was created) and order verification. A capture is accepted only in the currency recorded on that quote, so the same number in a cheaper currency is refused.
 4. Retry-safe PDF delivery with accessible error recovery and refunds where delivery fails.
 5. Protect customer data with retention limits and privacy notice, redact logs and secure rate limits.
-6. Test declined/cancelled/duplicate/replayed payments and tampered quote amounts.
+6. Test declined/cancelled/duplicate/replayed payments, tampered quote amounts and tampered checkout currencies.
 7. Operator validation of payment settings is required before charging real customers.
 
 ## Coverage

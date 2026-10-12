@@ -96,9 +96,84 @@ Token: create the sandbox Worker once in the dashboard (empty Hello World named 
 
 GitHub secrets (Settings > Environments > sandbox): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and when ready `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET`, `PAYPAL_SANDBOX_MERCHANT_ID`, `PAYPAL_SANDBOX_WEBHOOK_ID`.
 
+## International checkout currency (12 October 2026)
+
+Most target customers are in the United States, so the checkout can now charge in the buyer's own
+currency. Nothing about the EUR 4.00 price has changed, and no non-EUR price is live.
+
+### How it is gated
+
+`QUOTE_CURRENCIES_APPROVED` is a release gate in the same spirit as `QUOTE_LIVE_APPROVED`. Unset, the
+site is EUR-only and behaves exactly as before: one currency in the selector (hidden), EUR orders, EUR
+verification. Setting it to `USD,GBP` on the deployed Worker turns those on. It is deliberately not
+committed to `wrangler.jsonc`, and a test fails if it ever is. A code with no price point in
+`CHECKOUT_PRICES` can never be enabled however the variable is spelled.
+
+### Proposed price points — OWNER APPROVAL REQUIRED
+
+These sit in `CHECKOUT_PRICES` (`public/assets/quote-model.js`) and are inert until approved. ECB
+reference rates for 12 October 2026: EUR/USD 1.1181, EUR/GBP 0.84478, so EUR 4.00 is USD 4.47 / GBP 3.38.
+
+| Currency | Proposed | Straight conversion | In EUR at today's rate | Why |
+| --- | --- | --- | --- | --- |
+| EUR | 4.00 | — | 4.00 | Unchanged live price. |
+| USD | 4.99 | 4.47 | 4.46 | Standard price point in the main target market; the ~12% margin over conversion absorbs PayPal's cross-border and FX spread, which lands on us when we settle to a EUR balance. |
+| GBP | 3.49 | 3.38 | 4.13 | Nearest clean point above conversion; keeps UK within a few cent of the euro price. |
+
+Alternatives if a tighter match to EUR 4.00 is preferred: USD 4.49 (EUR 4.02) and GBP 3.99 (EUR 4.72).
+Changing either number is a one-line edit; prices are not negotiated at runtime and never come from the
+browser. Decide this against PayPal's cross-border fees on the actual merchant account, not the rate alone.
+
+### Behaviour
+
+- Default currency comes from Cloudflare's own `request.cf.country` at the edge. No geolocation service,
+  no new subscription. US and US territories map to USD, GB/GG/IM/JE to GBP, the euro area to EUR.
+- Visitors can override the default with a selector next to the pay buttons. The choice is kept in
+  `sessionStorage` for the tab, and the server's `/api/quotes/config` list is the only source of what may
+  be offered. A stored choice that is no longer offered is discarded.
+- A country whose currency we do not charge in falls back to EUR, and the page says so before payment,
+  naming the currency it could not use where it knows it ("We cannot charge in CAD yet…").
+- The total and both pay buttons always show the amount and currency about to be charged.
+- Once a PayPal order exists its currency is fixed: PayPal prices an order at creation, so a later switch
+  is refused with 409 and the selector is locked to the prepared currency rather than charging a
+  different amount from the one on screen. Creating a new preview releases the lock.
+- The currency is part of the PayPal request ID (`<quote>-<CUR>-<minor>`), so a retry can never reuse an
+  order created at another price or in another currency. Duplicate-checkout prevention is unchanged.
+- The PayPal JS SDK is priced per currency, so it is loaded once per currency into its own
+  `data-namespace`; card fields are torn down and re-rendered when the currency changes.
+- `price_currency` (migration `0004_quote_currency.sql`) records what the order was created in. Capture
+  verification, the per-download capture re-check and the status endpoint all read it back. NULL means an
+  order from before this change: still verified as EUR, never re-priced.
+- GA4 `purchase`, `paid_purchase` and `quote_payment_verified` report the recorded currency and amount,
+  so Ads revenue matches PayPal settlement. The one-sale-per-transaction guard is unchanged.
+- Consent handling, refund and reversal revocation, idempotency and expiry are untouched.
+
+### Owner actions
+
+1. Approve or amend the USD and GBP price points above.
+2. Confirm on the PayPal merchant account whether USD and GBP are **received** currencies or auto-converted
+   to the EUR balance, and at what conversion spread. PayPal supports all three for Orders v2
+   (25 currencies; EUR, USD and GBP are all two-decimal), but whether this account holds balances or
+   converts on receipt is account-specific and changes the margin on the table above.
+3. Review the seller tax treatment of charging non-EUR for the quotation-generation service.
+4. After sandbox e2e in all three currencies, set `QUOTE_CURRENCIES_APPROVED=USD,GBP` on the Worker
+   (`npx wrangler secret put` is not needed; it is a plain var). Leave it unset to stay EUR-only.
+
+### Blockers requiring merchant-account access
+
+- **PayPal merchant currency handling is unverified.** No PayPal credentials are available in this
+  environment, so the account's received-currency configuration, cross-border fees and FX spread could not
+  be checked. This is the one open question behind the proposed price points.
+- **Per-currency buyer eligibility is unverified.** `providerReadiness` still probes card-field
+  eligibility in EUR only. PayPal computes eligibility per request, including buyer country, so USD and
+  GBP card availability must be observed in the sandbox round trip rather than assumed.
+- No sandbox transaction has been run in any currency; see the gates below.
+
 ## Release gates still open
 
-- Real sandbox order approval/capture/webhook round trip and immediate download on the configured Worker.
+- Real sandbox order approval/capture/webhook round trip and immediate download on the configured Worker, run separately for USD, GBP and EUR, with the PayPal-side amount and currency checked against the quote row each time.
+- Card-field eligibility observed per currency on a real buyer browser, since PayPal computes it per request.
+- GA4 DebugView confirms a USD and a GBP sale report their own currency and value, not EUR.
 - Cancel/decline, ambiguous network failures, concurrent retries, webhook replay/refund, expired recovery link and private R2 access checks on actual Cloudflare services.
 - Actual iPhone Safari and Android Chrome testing, including all six logo formats, PDF first-page conversion, oversized/malformed files and recovery links after leaving the tab.
 - Browser layout and logo tests on the branch preview, including multiple-page A4 preview.

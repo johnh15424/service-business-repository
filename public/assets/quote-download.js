@@ -44,8 +44,12 @@ function showPaid(data){
   if(!paidShown){paidShown=true;preparePdf();}
   if(!paidTracked&&data.transactionId&&Number(data.priceMinor)>0&&once('spt_purchase_'+data.transactionId)){
     const niche=data.niche?{niche:String(data.niche).slice(0,60)}:{},value=(Number(data.priceMinor)||0)/100;
-    track('quote_payment_verified',{value,currency:'EUR',transaction_id:data.transactionId,...niche});
-    const sale={value,currency:'EUR',transaction_id:data.transactionId,...niche,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:value,quantity:1}]};
+    // The currency the payment was actually taken in, as recorded on the order and re-verified against
+    // PayPal, not the currency this browser happened to be showing. Every supported checkout currency
+    // uses two decimals, so minor units are hundredths. EUR covers orders predating the currency column.
+    const currency=/^[A-Z]{3}$/.test(data.currency||'')?data.currency:'EUR';
+    track('quote_payment_verified',{value,currency,transaction_id:data.transactionId,...niche});
+    const sale={value,currency,transaction_id:data.transactionId,...niche,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:value,quantity:1}]};
     // Two names for one verified sale. `purchase` is the GA4 ecommerce event; `paid_purchase` is the
     // event name behind the existing Google Ads primary conversion "servicepricingtools.com (web)
     // paid_purchase", which until now nothing on the site ever emitted. Both carry the same
