@@ -38,6 +38,10 @@ test('injected tracking script runs and preserves checkout and event forwarding'
   vm.runInContext(inline, context);
   assert.equal(dataLayer[1][0], 'config');
   assert.equal(dataLayer[1][1], 'G-J3BBT6YZRB');
+  assert.ok(!('debug_mode' in dataLayer[1][2]), 'normal visits must not carry debug_mode');
+  const debugLayer = [];
+  vm.runInContext(inline, vm.createContext({ URLSearchParams, window: { location: {search:'?spt_debug=1'}, dataLayer: debugLayer, addEventListener() {} }, dataLayer: debugLayer, document: { addEventListener() {} }, Date, encodeURIComponent }));
+  assert.equal(debugLayer[1][2].debug_mode, true);
   assert.equal(context.directPayhipCheckout('https://payhip.com/b/7pXUm'), 'https://payhip.com/buy?link=7pXUm');
   assert.equal(context.directPayhipCheckout('https://example.com/'), 'https://example.com/');
   listeners.get('calculator:conversion')({ detail: { event: 'calculator_completed', calculator: 'dog_grooming' } });

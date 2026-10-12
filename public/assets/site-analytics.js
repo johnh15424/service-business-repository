@@ -2,10 +2,11 @@
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', 'G-J3BBT6YZRB', {
-    debug_mode: new URLSearchParams(window.location.search).get('spt_debug') === '1',
-    linker: { domains: ['servicepricingtools.com', 'payhip.com'] }
-  });
+  var gaConfig = { linker: { domains: ['servicepricingtools.com', 'payhip.com'] } };
+  // GA4 treats any debug_mode value, even false, as debug traffic, which its Developer traffic filter drops
+  // from reports. Only send it for an explicit ?spt_debug=1 visit.
+  if (new URLSearchParams(window.location.search).get('spt_debug') === '1') gaConfig.debug_mode = true;
+  gtag('config', 'G-J3BBT6YZRB', gaConfig);
 
   function directPayhipCheckout(href) {
     var match = String(href || '').match(/^https:\/\/payhip\.com\/b\/([^/?#]+)/i);
