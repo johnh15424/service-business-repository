@@ -54,7 +54,7 @@ const LIVE_HOSTS=new Set(['servicepricingtools.com','www.servicepricingtools.com
 export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}={}) {
   const url=new URL(request.url),path=url.pathname;
   if(env.QUOTE_PAYMENT_MODE==='live'&&!LIVE_HOSTS.has(url.hostname))env={QUOTE_PAYMENT_MODE:'disabled'};
-  if(path==='/api/quotes/config'){await recordReadiness(env).catch(()=>{});return json({preview:available(env),checkout:Boolean(paymentReady(env)),mode:paymentMode(env),price:3,currency:'EUR',supportEmail:supportEmail(env)});}
+  if(path==='/api/quotes/config'){await recordReadiness(env).catch(()=>{});return json({preview:available(env),checkout:Boolean(paymentReady(env)),mode:paymentMode(env),price:3,currency:'EUR',supportEmail:supportEmail(env),...(paymentReady(env)?{paypalClientId:env.PAYPAL_CLIENT_ID}:{})});}
   if(!available(env))return json({error:'Quote downloads are not yet available. You can still edit your quotation preview.'},503);
   try{
     const webhook=path==='/api/quotes/paypal-webhook';
@@ -102,18 +102,16 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
       if(!paymentReady(env))return json({error:'Payments are disabled pending end-to-end verification.'},503);
       if(['paid','refunded','reversed'].includes(q.status))return json({error:'This quotation already has a payment. Check its download status.'},409);
       if(now()-q.created_at>5*3600)return json({error:'This checkout has expired. Create a new preview.'},410);
-      if(q.checkout_url)return json({url:q.checkout_url});
+      if(q.checkout_url)return json({url:q.checkout_url,orderId:q.order_id});
       const lock=await env.QUOTE_DB.prepare('UPDATE quotes SET checkout_lock=? WHERE id=? AND checkout_lock<? AND order_id IS NULL').bind(now()+60,id,now()).run();
       if(!lock.meta.changes)return json({error:'Checkout is being prepared. Retry shortly.'},409);
       try{
-        // Optional {"method":"card"} opens PayPal's guest card form first; anything else keeps the default PayPal page.
-        let landing='NO_PREFERENCE';try{const b=JSON.parse((await request.text()).slice(0,200)||'{}');if(b.method==='card')landing='GUEST_CHECKOUT';}catch{}
         const token=request.headers.get('Authorization').slice(7),returnUrl=url.origin+'/quote-download/#'+id+'.'+token;
-        const order=await api(env,'/v2/checkout/orders',{method:'POST',idempotency:id,body:{intent:'CAPTURE',purchase_units:[{reference_id:id,custom_id:id,description:'Professional PDF quotation',payee:{merchant_id:env.PAYPAL_MERCHANT_ID},amount:{currency_code:'EUR',value:'3.00'}}],payment_source:{paypal:{experience_context:{shipping_preference:'NO_SHIPPING',user_action:'PAY_NOW',landing_page:landing,return_url:returnUrl,cancel_url:returnUrl}}}}});
+        const order=await api(env,'/v2/checkout/orders',{method:'POST',idempotency:id,body:{intent:'CAPTURE',purchase_units:[{reference_id:id,custom_id:id,description:'Professional PDF quotation',payee:{merchant_id:env.PAYPAL_MERCHANT_ID},amount:{currency_code:'EUR',value:'3.00'}}],application_context:{brand_name:'Service Pricing Tools',shipping_preference:'NO_SHIPPING',user_action:'PAY_NOW',return_url:returnUrl,cancel_url:returnUrl}}});
         const approval=order.links?.find(l=>['payer-action','approve'].includes(l.rel))?.href;
         if(!approval||!/^https:\/\/(www\.)?(sandbox\.)?paypal\.com\//.test(approval))throw Error('PROVIDER_RETRY');
         await env.QUOTE_DB.prepare("UPDATE quotes SET order_id=?,checkout_url=?,status='checkout',checkout_lock=0 WHERE id=? AND order_id IS NULL").bind(order.id,approval,id).run();
-        await event(env,id,'quote_checkout_started');return json({url:approval});
+        await event(env,id,'quote_checkout_started');return json({url:approval,orderId:order.id});
       }catch(e){await recordFailure(env,id,'CHECKOUT_'+e.message);throw e;}
       finally{await env.QUOTE_DB.prepare('UPDATE quotes SET checkout_lock=0 WHERE id=?').bind(id).run();}
     }
