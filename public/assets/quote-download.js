@@ -1,15 +1,70 @@
-const $=id=>document.getElementById(id),status=$('quote-status');
+const $=id=>document.getElementById(id),status=$('quote-status'),button=$('quote-download');
 // PayPal appends ?token=…&PayerID=… to the return URL, which can land inside the fragment; accept that suffix.
 const match=location.hash.match(/^#([a-f0-9-]{36})\.([a-f0-9]{64})(?:[?&]|$)/);
+// A payer who just approved (card fields add ?approved=1, PayPal adds PayerID) gets a bounded wait for capture.
+const approved=/[?&](approved=1|PayerID=)/.test(location.hash+location.search);
 if(match&&location.hash.length>102)history.replaceState(null,'',location.pathname+'#'+match[1]+'.'+match[2]);
-let busy=false,paidTracked=false;
+const POLL_MS=4000,POLL_LIMIT=30;
+let busy=false,paidTracked=false,paidShown=false,polls=0,timer=0,pdfUrl=null;
 let analyticsEnabled=false;
 const events=[];
 const track=(event,extra={})=>{const p={product_type:'professional_quote',page_location:location.origin+location.pathname,page_referrer:'',...extra};if(analyticsEnabled)window.gtag('event',event,p);else events.push([event,p]);};
 $('quote-analytics').onchange=()=>{if(!$('quote-analytics').checked){analyticsEnabled=false;window['ga-disable-G-J3BBT6YZRB']=true;return;}window['ga-disable-G-J3BBT6YZRB']=false;window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};if(!document.getElementById('quote-ga')){const s=document.createElement('script');s.id='quote-ga';s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id=G-J3BBT6YZRB';document.head.append(s);window.gtag('js',new Date());window.gtag('config','G-J3BBT6YZRB',{send_page_view:false,page_location:location.origin+location.pathname,page_referrer:''});}analyticsEnabled=true;for(const [e,p]of events.splice(0))window.gtag('event',e,p);};
 fetch('/api/quotes/config').then(r=>r.json()).then(c=>{if(c.supportEmail){const a=document.createElement('a');a.href='mailto:'+c.supportEmail;a.textContent='Service Pricing Tools support';$('quote-support').replaceChildren(a);}}).catch(()=>{});
-async function request(action,method='GET'){const r=await fetch(`/api/quotes/${match[1]}/${action}`,{method,headers:{Authorization:'Bearer '+match[2]}});if(!r.ok){const d=await r.json();throw Error(d.error||'Please try again.');}return r;}
-async function check(){if(busy||!match)return;busy=true;$('quote-retry').disabled=true;try{let data=await(await request('status')).json();if(data.status==='checkout'){try{await request('capture','POST');}catch(e){status.textContent=e.message;}data=await(await request('status')).json();}if(data.status==='paid'){$('quote-download').hidden=false;$('quote-resume').hidden=true;status.textContent='Payment verified. Your PDF is ready to download.';if(!paidTracked){track('quote_payment_verified',{value:3,currency:'EUR',transaction_id:data.transactionId});track('purchase',{value:3,currency:'EUR',transaction_id:data.transactionId,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:3,quantity:1}]});paidTracked=true;}}else if(data.checkoutUrl){$('quote-resume').href=data.checkoutUrl;$('quote-resume').hidden=false;status.textContent='Payment is not confirmed. If you cancelled, no payment has been verified. Return to payment or check again if you already paid.';}else status.textContent='Quotation status: '+data.status;}catch(e){status.textContent=e.message;}finally{busy=false;$('quote-retry').disabled=false;}}
-$('quote-retry').onclick=check;
-$('quote-download').onclick=async()=>{if(busy)return;busy=true;try{const r=await request('download'),blob=await r.blob();if(blob.size<100)throw Error('The file was incomplete. Please retry.');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='quotation.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);status.textContent='Your PDF download has started. Save it to your device.';track('quote_pdf_delivered',{transaction_id:'quote_'+match[1]});request('delivered','POST').catch(()=>{});}catch(e){status.textContent=e.message;track('quote_fulfilment_failed');}finally{busy=false;}};
-if(match){$('quote-reference').textContent='Quotation reference: '+match[1];check();}else{status.textContent='This private download link is incomplete. Open the original link from your checkout.';$('quote-retry').hidden=true;}
+async function request(action,method='GET',body){const r=await fetch(`/api/quotes/${match[1]}/${action}`,{method,headers:{Authorization:'Bearer '+match[2],...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});if(!r.ok){const d=await r.json().catch(()=>({}));const e=Error(d.error||'Please try again.');e.data=d;throw e;}return r;}
+
+// The PDF is fetched before the tap so the button is a plain link to a ready file: a direct tap on a
+// download link works in iPhone Safari, Android and desktop browsers, unlike a download started after a fetch.
+async function preparePdf(){
+  button.hidden=false;button.setAttribute('aria-disabled','true');button.textContent='Preparing your PDF…';
+  try{const blob=await(await request('download')).blob();if(blob.size<100)throw Error('The file was incomplete. Please retry.');
+    pdfUrl=URL.createObjectURL(blob);button.href=pdfUrl;button.download='quotation-'+match[1].slice(0,8)+'.pdf';}
+  catch(e){pdfUrl=null;button.removeAttribute('href');status.textContent=e.message;track('quote_fulfilment_failed');}
+  finally{button.removeAttribute('aria-disabled');button.textContent='Download Your PDF';}
+}
+button.onclick=e=>{
+  if(!pdfUrl){e.preventDefault();preparePdf();return;}
+  status.textContent='Your PDF download has started. Save it to your device.';
+  track('quote_pdf_delivered',{transaction_id:'quote_'+match[1]});request('delivered','POST').catch(()=>{});
+};
+
+function showEmail(state){
+  const box=$('quote-email'),text=$('quote-email-status'),form=$('quote-email-form');box.hidden=false;
+  form.hidden=!['none','failed'].includes(state);
+  text.textContent=state==='sent'?'We have emailed your secure download link to the address you provided.'
+    :state==='pending'?'Your secure download link will also be emailed to the address you provided.'
+    :state==='failed'?'We could not email your download link. Check the address and try again.'
+    :'Want a copy of your download link by email? Enter your email address.';
+}
+$('quote-email-form').onsubmit=async e=>{
+  e.preventDefault();const submit=e.target.querySelector('button');if(submit.disabled)return;submit.disabled=true;
+  try{showEmail((await(await request('email','POST',{email:$('quote-email-input').value})).json()).email);}
+  catch(err){if(err.data?.email)showEmail(err.data.email);$('quote-email-status').textContent=err.message;}
+  finally{submit.disabled=false;}
+};
+
+function showPaid(data){
+  $('quote-heading').textContent='Payment successful!';$('quote-lead').hidden=false;
+  $('quote-retry').hidden=true;$('quote-resume').hidden=true;status.textContent='';
+  if(!paidShown){paidShown=true;preparePdf();}
+  showEmail(data.email||'none');
+  if(!paidTracked){track('quote_payment_verified',{value:3,currency:'EUR',transaction_id:data.transactionId});track('purchase',{value:3,currency:'EUR',transaction_id:data.transactionId,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:3,quantity:1}]});paidTracked=true;}
+}
+// Checks the existing order only: the capture endpoint never creates an order or a second charge.
+async function check(){
+  if(busy||!match)return;busy=true;$('quote-retry').disabled=true;
+  try{
+    let data=await(await request('status')).json();
+    if(data.status==='checkout'){try{await request('capture','POST');}catch{/* not confirmed yet */}data=await(await request('status')).json();}
+    if(data.status==='paid')return showPaid(data);
+    if(['refunded','reversed'].includes(data.status)){status.textContent='This payment was refunded or reversed, so the download is no longer available.';return;}
+    if(data.status==='checkout'&&approved&&polls<POLL_LIMIT){polls++;status.textContent='Confirming your payment… Please keep this page open. Do not pay again.';timer=setTimeout(check,POLL_MS);return;}
+    $('quote-retry').hidden=false;
+    if(data.status==='checkout'&&approved){status.textContent='Your payment is still being confirmed. Do not pay again. Check again in a few minutes, or reopen this page link later.';return;}
+    if(data.checkoutUrl){$('quote-resume').href=data.checkoutUrl;$('quote-resume').hidden=false;status.textContent='Payment is not confirmed. If you cancelled, no payment has been taken. Return to payment, or check again if you already paid.';}
+    else status.textContent='Quotation status: '+data.status;
+  }catch(e){status.textContent=e.message;$('quote-retry').hidden=false;}
+  finally{busy=false;$('quote-retry').disabled=false;}
+}
+$('quote-retry').onclick=()=>{clearTimeout(timer);polls=0;check();};
+if(match){$('quote-reference').textContent='Quotation reference: '+match[1];check();}else{status.textContent='This private download link is incomplete. Open the original link from your checkout or email.';}

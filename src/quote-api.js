@@ -1,6 +1,7 @@
 import { normaliseQuote } from '../public/assets/quote-model.js';
 import { renderQuote } from './quote-pdf.js';
 import { paypal, paymentMode, verifyPaidOrder, verifyWebhook, providerReadiness } from './quote-paypal.js';
+import { normaliseEmail, emailState, sendDeliveryEmail, sendPendingEmails } from './quote-email.js';
 const encoder=new TextEncoder();
 const now=()=>Math.floor(Date.now()/1000);
 const headers={'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
@@ -20,14 +21,16 @@ async function authorised(request,env,id){
   const token=request.headers.get('Authorization')?.replace(/^Bearer /,'');
   if(!token||!/^[a-f0-9]{64}$/.test(token))throw Error('NOT_FOUND');
   const q=await env.QUOTE_DB.prepare('SELECT * FROM quotes WHERE id=?').bind(id).first();
-  if(!q||q.token_hash!==await hash(token)||q.expires_at<=now())throw Error('NOT_FOUND');return q;
+  const h=await hash(token);
+  if(!q||(q.token_hash!==h&&q.email_token_hash!==h)||q.expires_at<=now())throw Error('NOT_FOUND');return q;
 }
 async function fulfil(env,q,api=paypal){
   if(['refunded','reversed'].includes(q.status))throw Error('ENTITLEMENT_REVOKED');
   const order=await api(env,'/v2/checkout/orders/'+q.order_id);
   const capture=verifyPaidOrder(order,q,env.PAYPAL_MERCHANT_ID);
   await env.QUOTE_DB.prepare("UPDATE quotes SET status='paid',capture_id=?,failure_code=NULL WHERE id=? AND status NOT IN ('refunded','reversed')").bind(capture,q.id).run();
-  await event(env,q.id,'quote_payment_verified');return capture;
+  await event(env,q.id,'quote_payment_verified');
+  await sendDeliveryEmail(env,q.id,{support:supportEmail(env)}).catch(()=>{});return capture;
 }
 async function capture(env,q,api=paypal){
   if(!q.order_id)throw Error('NO_CHECKOUT');
@@ -84,7 +87,7 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
       return json({received:true});
     }
     if(path==='/api/quotes'&&request.method==='POST'){
-      const body=await limitedBody(request),q=normaliseQuote(body.quote),id=crypto.randomUUID();
+      const body=await limitedBody(request),q=normaliseQuote(body.quote),deliveryEmail=normaliseEmail(body.deliveryEmail),id=crypto.randomUUID();
       const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');
       const f=await fonts(env,url.origin);
       const final=await render(q,f),preview=await render(q,{...f,watermark:true});
@@ -92,11 +95,11 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
       await env.QUOTE_FILES.put(id+'/final.pdf',final,{httpMetadata:{contentType:'application/pdf'}});
       await env.QUOTE_FILES.put(id+'/preview.pdf',preview,{httpMetadata:{contentType:'application/pdf'}});
       const expires=now()+7*86400;
-      await env.QUOTE_DB.prepare('INSERT INTO quotes(id,token_hash,created_at,expires_at,quote_json) VALUES(?,?,?,?,?)').bind(id,await hash(token),now(),expires,JSON.stringify({niche:q.niche,currency:q.currency,template:q.template})).run();
+      await env.QUOTE_DB.prepare('INSERT INTO quotes(id,token_hash,created_at,expires_at,quote_json,delivery_email) VALUES(?,?,?,?,?,?)').bind(id,await hash(token),now(),expires,JSON.stringify({niche:q.niche,currency:q.currency,template:q.template}),deliveryEmail).run();
       await event(env,id,'quote_preview_completed');
       return json({id,token,expiresAt:expires,checkout:Boolean(paymentReady(env))},201);
     }
-    const match=path.match(/^\/api\/quotes\/([a-f0-9-]{36})\/(preview|checkout|capture|status|download|delivered|card-check)$/);
+    const match=path.match(/^\/api\/quotes\/([a-f0-9-]{36})\/(preview|checkout|capture|status|download|delivered|card-check|email)$/);
     if(!match)return json({error:'Not found'},404);
     const [,id,action]=match,q=await authorised(request,env,id);
     if(action==='preview'&&request.method==='GET'){
@@ -126,7 +129,17 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
       await event(env,id,'card_check:'+result,'card_check:'+result);return json({recorded:true});
     }
     if(action==='capture'&&request.method==='POST'){await capture(env,q,api);return json({status:'paid'});}
-    if(action==='status'&&request.method==='GET')return json({status:q.status,expiresAt:q.expires_at,transactionId:q.status==='paid'?'quote_'+q.id:null,checkoutUrl:q.status==='checkout'?q.checkout_url:null});
+    if(action==='status'&&request.method==='GET')return json({status:q.status,expiresAt:q.expires_at,transactionId:q.status==='paid'?'quote_'+q.id:null,checkoutUrl:q.status==='checkout'?q.checkout_url:null,email:emailState(q)});
+    // Sets the delivery address for a quote that has none yet (or whose email failed), e.g. quotes paid before
+    // the field existed. Once an email has been sent the address is fixed, so a link holder cannot relay mail.
+    if(action==='email'&&request.method==='POST'){
+      const email=normaliseEmail((await limitedBody(request,2000)).email);if(!email)throw Error('Enter a valid email address for your PDF.');
+      if(q.email_status==='sent')return json({error:'Your download link has already been emailed.',email:'sent'},409);
+      if(['refunded','reversed'].includes(q.status))throw Error('ENTITLEMENT_REVOKED');
+      await env.QUOTE_DB.prepare('UPDATE quotes SET delivery_email=?,email_status=NULL,email_attempts=0,email_next_at=NULL WHERE id=? AND (email_status IS NULL OR email_status!=?)').bind(email,id,'sent').run();
+      const result=q.status==='paid'?await sendDeliveryEmail(env,id,{support:supportEmail(env)}).catch(()=>'retry'):'pending';
+      return json({email:result==='sent'?'sent':result==='failed'?'failed':'pending'});
+    }
     if(action==='delivered'&&request.method==='POST'){
       if(q.status!=='paid'||!q.delivered_at)return json({error:'No verified download'},403);
       await event(env,id,'quote_pdf_delivered');return json({recorded:true});
@@ -169,6 +182,7 @@ export async function reconcilePendingCheckouts(env,api=paypal){
   if(!paymentReady(env))return;
   const rows=await env.QUOTE_DB.prepare("SELECT * FROM quotes WHERE status='checkout' AND order_id IS NOT NULL AND created_at>? AND expires_at>? LIMIT 20").bind(now()-6*3600,now()).all();
   for(const q of rows.results){try{await capture(env,q,api);await event(env,q.id,'quote_payment_reconciled');}catch{/* failure code recorded by capture */}}
+  await sendPendingEmails(env,{support:supportEmail(env)});
 }
 export async function cleanExpiredQuotes(env){
   if(!env.QUOTE_DB||!env.QUOTE_FILES)return;
