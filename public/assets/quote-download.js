@@ -28,26 +28,10 @@ button.onclick=e=>{
   track('quote_pdf_delivered',{transaction_id:'quote_'+match[1]});request('delivered','POST').catch(()=>{});
 };
 
-function showEmail(state){
-  const box=$('quote-email'),text=$('quote-email-status'),form=$('quote-email-form');box.hidden=false;
-  form.hidden=!['none','failed'].includes(state);
-  text.textContent=state==='sent'?'We have emailed your secure download link to the address you provided.'
-    :state==='pending'?'Your secure download link will also be emailed to the address you provided.'
-    :state==='failed'?'We could not email your download link. Check the address and try again.'
-    :'Want a copy of your download link by email? Enter your email address.';
-}
-$('quote-email-form').onsubmit=async e=>{
-  e.preventDefault();const submit=e.target.querySelector('button');if(submit.disabled)return;submit.disabled=true;
-  try{showEmail((await(await request('email','POST',{email:$('quote-email-input').value})).json()).email);}
-  catch(err){if(err.data?.email)showEmail(err.data.email);$('quote-email-status').textContent=err.message;}
-  finally{submit.disabled=false;}
-};
-
 function showPaid(data){
   $('quote-heading').textContent='Payment successful!';$('quote-lead').hidden=false;
   $('quote-retry').hidden=true;$('quote-resume').hidden=true;status.textContent='';
   if(!paidShown){paidShown=true;preparePdf();}
-  showEmail(data.email||'none');
   if(!paidTracked){track('quote_payment_verified',{value:3,currency:'EUR',transaction_id:data.transactionId});track('purchase',{value:3,currency:'EUR',transaction_id:data.transactionId,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:3,quantity:1}]});paidTracked=true;}
 }
 // Checks the existing order only: the capture endpoint never creates an order or a second charge.
@@ -67,4 +51,4 @@ async function check(){
   finally{busy=false;$('quote-retry').disabled=false;}
 }
 $('quote-retry').onclick=()=>{clearTimeout(timer);polls=0;check();};
-if(match){$('quote-reference').textContent='Quotation reference: '+match[1];check();}else{status.textContent='This private download link is incomplete. Open the original link from your checkout or email.';}
+if(match){$('quote-reference').textContent='Quotation reference: '+match[1];check();}else{status.textContent='This private download link is incomplete. Open the original link from your checkout.';}
