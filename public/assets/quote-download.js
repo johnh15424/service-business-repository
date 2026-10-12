@@ -6,10 +6,11 @@ const approved=/[?&](approved=1|PayerID=)/.test(location.hash+location.search);
 if(match&&location.hash.length>102)history.replaceState(null,'',location.pathname+'#'+match[1]+'.'+match[2]);
 const POLL_MS=4000,POLL_LIMIT=30;
 let busy=false,paidTracked=false,paidShown=false,polls=0,timer=0,pdfUrl=null;
-let analyticsEnabled=false;
-const events=[];
-const track=(event,extra={})=>{const p={product_type:'professional_quote',page_location:location.origin+location.pathname,page_referrer:'',...extra};if(analyticsEnabled)window.gtag('event',event,p);else events.push([event,p]);};
-$('quote-analytics').onchange=()=>{if(!$('quote-analytics').checked){analyticsEnabled=false;window['ga-disable-G-J3BBT6YZRB']=true;return;}window['ga-disable-G-J3BBT6YZRB']=false;window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};if(!document.getElementById('quote-ga')){const s=document.createElement('script');s.id='quote-ga';s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id=G-J3BBT6YZRB';document.head.append(s);window.gtag('js',new Date());window.gtag('config','G-J3BBT6YZRB',{send_page_view:false,page_location:location.origin+location.pathname,page_referrer:''});}analyticsEnabled=true;for(const [e,p]of events.splice(0))window.gtag('event',e,p);};
+// Measurement goes through the shared consent-mode tag (site-analytics.js): cookies only after Accept,
+// cookieless pings otherwise. Only the bare page path is reported, never the private link or customer data.
+const track=(event,extra={})=>{try{window.gtag?.('event',event,{product_type:'professional_quote',page_location:location.origin+location.pathname,page_referrer:'',...extra});}catch{}};
+// One purchase event per verified transaction on this device, so reloads and revisits never repeat it.
+const once=key=>{try{if(localStorage.getItem(key))return false;localStorage.setItem(key,'1');}catch{}return true;};
 fetch('/api/quotes/config').then(r=>r.json()).then(c=>{if(c.supportEmail){const a=document.createElement('a');a.href='mailto:'+c.supportEmail;a.textContent='Service Pricing Tools support';$('quote-support').replaceChildren(a);}}).catch(()=>{});
 async function request(action,method='GET',body){const r=await fetch(`/api/quotes/${match[1]}/${action}`,{method,headers:{Authorization:'Bearer '+match[2],...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});if(!r.ok){const d=await r.json().catch(()=>({}));const e=Error(d.error||'Please try again.');e.data=d;throw e;}return r;}
 
@@ -32,7 +33,7 @@ function showPaid(data){
   $('quote-heading').textContent='Payment successful!';$('quote-lead').hidden=false;
   $('quote-retry').hidden=true;$('quote-resume').hidden=true;status.textContent='';
   if(!paidShown){paidShown=true;preparePdf();}
-  if(!paidTracked){const niche=data.niche?{niche:String(data.niche).slice(0,60)}:{},value=(Number(data.priceMinor)||0)/100;track('quote_payment_verified',{value,currency:'EUR',transaction_id:data.transactionId,...niche});track('purchase',{value,currency:'EUR',transaction_id:data.transactionId,...niche,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:value,quantity:1}]});paidTracked=true;}
+  if(!paidTracked&&data.transactionId&&Number(data.priceMinor)>0&&once('spt_purchase_'+data.transactionId)){const niche=data.niche?{niche:String(data.niche).slice(0,60)}:{},value=(Number(data.priceMinor)||0)/100;track('quote_payment_verified',{value,currency:'EUR',transaction_id:data.transactionId,...niche});track('purchase',{value,currency:'EUR',transaction_id:data.transactionId,...niche,items:[{item_id:'professional_quote',item_name:'Professional PDF quotation',price:value,quantity:1}]});paidTracked=true;}
 }
 // Checks the existing order only: the capture endpoint never creates an order or a second charge.
 async function check(){
