@@ -134,13 +134,19 @@ jobs:
           PAYPAL_WEBHOOK_ID: ${{ secrets.PAYPAL_SANDBOX_WEBHOOK_ID }}
         run: |
           set -u
-          for name in PAYPAL_CLIENT_ID PAYPAL_CLIENT_SECRET PAYPAL_MERCHANT_ID PAYPAL_WEBHOOK_ID; do
-            value="${!name}"
-            if [ -z "$value" ]; then
-              echo "::warning::$name is empty; skipping."
-              continue
+          names="PAYPAL_CLIENT_ID PAYPAL_CLIENT_SECRET PAYPAL_MERCHANT_ID PAYPAL_WEBHOOK_ID"
+          # Fail closed: check every secret before uploading any, so a partial
+          # credential set can never be pushed and reported as success.
+          missing=0
+          for name in $names; do
+            if [ -z "${!name}" ]; then
+              echo "::error::GitHub secret PAYPAL_SANDBOX_${name#PAYPAL_} is missing or empty in the sandbox environment."
+              missing=1
             fi
-            printf '%s' "$value" | npx wrangler secret put "$name" --env sandbox
+          done
+          [ "$missing" -eq 0 ] || exit 1
+          for name in $names; do
+            printf '%s' "${!name}" | npx wrangler secret put "$name" --env sandbox
             echo "Set $name"
           done
 
