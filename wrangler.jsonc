@@ -25,7 +25,7 @@
       },
       "vars": {
         "QUOTE_PAYMENT_MODE": "sandbox",
-        "QUOTE_SUPPORT_EMAIL": "REPLACE_WITH_MONITORED_ADDRESS"
+        "QUOTE_SUPPORT_EMAIL": "irishambience@gmail.com"
       },
       "d1_databases": [
         {
