@@ -11,7 +11,38 @@
     "not_found_handling": "404-page"
   },
   "vars": {
-    "QUOTE_PAYMENT_MODE": "disabled"
+    "QUOTE_PAYMENT_MODE": "live",
+    "QUOTE_SUPPORT_EMAIL": "irishambience@gmail.com"
+  },
+  "d1_databases": [
+    {
+      "binding": "QUOTE_DB",
+      "database_name": "spt-quotes-production",
+      "database_id": "c53af4a2-4931-40fe-882e-4acf749dd9cb",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "QUOTE_FILES",
+      "bucket_name": "spt-quotes-production-private",
+      "jurisdiction": "eu"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "QUOTE_LIMITER",
+      "namespace_id": "3102",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "*/10 * * * *"
+    ]
   },
   "env": {
     "sandbox": {
