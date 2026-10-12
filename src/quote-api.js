@@ -92,7 +92,7 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
       await event(env,id,'quote_preview_completed');
       return json({id,token,expiresAt:expires,checkout:Boolean(paymentReady(env))},201);
     }
-    const match=path.match(/^\/api\/quotes\/([a-f0-9-]{36})\/(preview|checkout|capture|status|download|delivered)$/);
+    const match=path.match(/^\/api\/quotes\/([a-f0-9-]{36})\/(preview|checkout|capture|status|download|delivered|card-check)$/);
     if(!match)return json({error:'Not found'},404);
     const [,id,action]=match,q=await authorised(request,env,id);
     if(action==='preview'&&request.method==='GET'){
@@ -114,6 +114,12 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
         await event(env,id,'quote_checkout_started');return json({url:approval,orderId:order.id});
       }catch(e){await recordFailure(env,id,'CHECKOUT_'+e.message);throw e;}
       finally{await env.QUOTE_DB.prepare('UPDATE quotes SET checkout_lock=0 WHERE id=?').bind(id).run();}
+    }
+    // Content-free record of the buyer browser's card-fields eligibility result, for diagnosing a hidden card option.
+    if(action==='card-check'&&request.method==='POST'){
+      const result=(await request.text()).slice(0,60).trim();
+      if(!/^(eligible|ineligible|no_client_id|sdk_failed|render_failed)(:[a-z-]{1,30})?$/.test(result))return json({error:'Invalid result'},400);
+      await event(env,id,'card_check:'+result,'card_check:'+result);return json({recorded:true});
     }
     if(action==='capture'&&request.method==='POST'){await capture(env,q,api);return json({status:'paid'});}
     if(action==='status'&&request.method==='GET')return json({status:q.status,expiresAt:q.expires_at,transactionId:q.status==='paid'?'quote_'+q.id:null,checkoutUrl:q.status==='checkout'?q.checkout_url:null});
