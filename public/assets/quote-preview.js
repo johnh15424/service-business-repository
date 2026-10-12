@@ -8,7 +8,7 @@ export function mountQuotePreview({name='Service',niche=name,getSnapshot}={}) {
   if(document.getElementById('spt-quote-preview'))return;
   const estimate=document.getElementById('estimate');if(!estimate)return;
   const css=el('link','',{rel:'stylesheet',href:'/assets/quote.css'});document.head.append(css);
-  const entry=el('section','',{class:'quote-entry'}),open=el('button','Generate Professional Quote',{type:'button',class:'primary'});
+  const entry=el('section','',{class:'quote-entry'}),open=el('button','Generate Professional Quote – €3',{type:'button',class:'primary'});
   entry.append(el('strong','Your price. Your branding. Ready to send.'),el('p','Create a professional quotation. Review it before a €3 once-off PDF purchase. No subscription.'),open);
   // Hidden until the server confirms checkout is fully configured, so no €3 offer is shown that cannot be bought.
   entry.hidden=true;estimate.querySelector('.estimate-top')?.after(entry);if(!entry.isConnected)estimate.prepend(entry);

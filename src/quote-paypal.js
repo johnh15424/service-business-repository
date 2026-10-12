@@ -14,10 +14,21 @@ export function paymentMode(env) {
 export async function paypal(env,path,{method='GET',body,idempotency}={}) {
   const mode=paymentMode(env);if(mode==='disabled')throw Error('PAYMENTS_DISABLED');
   const base=mode==='sandbox'?'https://api-m.sandbox.paypal.com':'https://api-m.paypal.com';
-  const auth=await fetch(base+'/v1/oauth2/token',{method:'POST',headers:{Authorization:'Basic '+btoa(env.PAYPAL_CLIENT_ID+':'+env.PAYPAL_CLIENT_SECRET),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials',signal:AbortSignal.timeout(15000)});
-  if(!auth.ok)throw Error('PROVIDER_AUTH');const token=await auth.json();
-  const res=await fetch(base+path,{method,headers:{Authorization:'Bearer '+token.access_token,'Content-Type':'application/json',...(idempotency?{'PayPal-Request-Id':idempotency}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(20000)});
+  const token=await accessToken(env,base);
+  const res=await fetch(base+path,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...(idempotency?{'PayPal-Request-Id':idempotency}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(20000)});
+  if(res.status===401)cachedToken=null;
   if(!res.ok)throw Error('PROVIDER_RETRY');return res.json();
+}
+// One OAuth token per isolate until shortly before it expires, instead of one per API call: halves outbound
+// requests, keeping scheduler runs within the Workers Free plan's 50 subrequests per invocation.
+let cachedToken=null;
+async function accessToken(env,base){
+  const key=base+'|'+env.PAYPAL_CLIENT_ID;
+  if(cachedToken?.key===key&&cachedToken.expires>Date.now())return cachedToken.value;
+  const auth=await fetch(base+'/v1/oauth2/token',{method:'POST',headers:{Authorization:'Basic '+btoa(env.PAYPAL_CLIENT_ID+':'+env.PAYPAL_CLIENT_SECRET),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials',signal:AbortSignal.timeout(15000)});
+  if(!auth.ok)throw Error('PROVIDER_AUTH');const t=await auth.json();
+  cachedToken={key,value:t.access_token,expires:Date.now()+Math.max(0,Number(t.expires_in||0)-300)*1000};
+  return cachedToken.value;
 }
 export function verifyPaidOrder(order,quote,merchantId) {
   const units=order.purchase_units;

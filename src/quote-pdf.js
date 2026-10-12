@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, degrees } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { normaliseQuote, money } from '../public/assets/quote-model.js';
 
@@ -11,7 +11,15 @@ export function validatePng(data) {
   if(!w||!h||w>1200||h>1200||w*h>1440000)throw Error('Converted logo exceeds the dimension limit.');
   return bytes;
 }
-export async function renderQuote(input,{regular,bold,watermark=false}={}) {
+// Watermarks an already rendered final PDF for the preview. Stamping costs a fraction of the CPU of a second
+// full render, which matters under the Workers Free plan's per-request CPU limit.
+export async function watermarkPdf(bytes){
+  const pdf=await PDFDocument.load(bytes),font=await pdf.embedFont(StandardFonts.HelveticaBold);
+  for(const p of pdf.getPages())p.drawText('PREVIEW ONLY',{x:95,y:350,size:48,font,color:rgb(.55,.6,.64),opacity:.3,rotate:degrees(30)});
+  return pdf.save();
+}
+export async function renderQuote(input,{regular,bold,watermark=false,base=null}={}) {
+  if(watermark&&base)return watermarkPdf(base);
   const q=normaliseQuote(input),pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
   const font=await pdf.embedFont(regular,{subset:true}),heavy=await pdf.embedFont(bold,{subset:true});
   const supported=new Set(font.getCharacterSet());

@@ -90,7 +90,7 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
       const body=await limitedBody(request),q=normaliseQuote(body.quote),deliveryEmail=normaliseEmail(body.deliveryEmail),id=crypto.randomUUID();
       const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');
       const f=await fonts(env,url.origin);
-      const final=await render(q,f),preview=await render(q,{...f,watermark:true});
+      const final=await render(q,f),preview=await render(q,{...f,watermark:true,base:final});
       if(final.length>4000000)throw Error('PDF_TOO_LARGE');
       await env.QUOTE_FILES.put(id+'/final.pdf',final,{httpMetadata:{contentType:'application/pdf'}});
       await env.QUOTE_FILES.put(id+'/preview.pdf',preview,{httpMetadata:{contentType:'application/pdf'}});
@@ -129,7 +129,7 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
       await event(env,id,'card_check:'+result,'card_check:'+result);return json({recorded:true});
     }
     if(action==='capture'&&request.method==='POST'){await capture(env,q,api);return json({status:'paid'});}
-    if(action==='status'&&request.method==='GET')return json({status:q.status,expiresAt:q.expires_at,transactionId:q.status==='paid'?'quote_'+q.id:null,checkoutUrl:q.status==='checkout'?q.checkout_url:null,email:emailState(q)});
+    if(action==='status'&&request.method==='GET')return json({status:q.status,expiresAt:q.expires_at,transactionId:q.status==='paid'?'quote_'+q.id:null,checkoutUrl:q.status==='checkout'?q.checkout_url:null,email:emailState(q),niche:(()=>{try{return JSON.parse(q.quote_json).niche||null;}catch{return null;}})()});
     // Sets the delivery address for a quote that has none yet (or whose email failed), e.g. quotes paid before
     // the field existed. Once an email has been sent the address is fixed, so a link holder cannot relay mail.
     if(action==='email'&&request.method==='POST'){
@@ -180,7 +180,7 @@ export async function reconcilePendingCheckouts(env,api=paypal){
   await event(env,'cron','reconcile_run',now()+':'+(paymentReady(env)?'ready':'not_ready'));
   await recordReadiness(env);
   if(!paymentReady(env))return;
-  const rows=await env.QUOTE_DB.prepare("SELECT * FROM quotes WHERE status='checkout' AND order_id IS NOT NULL AND created_at>? AND expires_at>? LIMIT 20").bind(now()-6*3600,now()).all();
+  const rows=await env.QUOTE_DB.prepare("SELECT * FROM quotes WHERE status='checkout' AND order_id IS NOT NULL AND created_at>? AND expires_at>? ORDER BY RANDOM() LIMIT 10").bind(now()-6*3600,now()).all();
   for(const q of rows.results){try{await capture(env,q,api);await event(env,q.id,'quote_payment_reconciled');}catch{/* failure code recorded by capture */}}
   await sendPendingEmails(env,{support:supportEmail(env)});
 }

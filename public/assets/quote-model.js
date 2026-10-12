@@ -34,5 +34,7 @@ export function calculatorSnapshot({niche,name,result,currency,document:doc}) {
   if(!result||!Number.isFinite(result.preTax)||!Number.isFinite(result.total)) throw Error('Calculate a valid service price first.');
   const value=id=>doc.getElementById(id)?.value;
   const selected=id=>doc.getElementById(id)?.selectedOptions?.[0]?.textContent;
-  return {niche,service:selected('jobType')||selected('service')||name,country:selected('country')||value('country')||'Other',currency,amountMinor:Math.round(result.preTax*10**currencyDigits(currency)),taxRegistered:value('chargeTax')==='yes',taxRate:Number(value('taxRate')||0),taxLabel:value('taxLabel')||(value('country')==='IE'?'VAT':'Tax')};
+  // The quotation line names the trade as well as the job type, e.g. "Window Cleaning – Standard residential clean".
+  const job=(selected('jobType')||selected('service')||'').trim(),service=!job?name:job.toLowerCase().includes(String(name).toLowerCase())?job:`${name} – ${job}`;
+  return {niche,service,country:selected('country')||value('country')||'Other',currency,amountMinor:Math.round(result.preTax*10**currencyDigits(currency)),taxRegistered:value('chargeTax')==='yes',taxRate:Number(value('taxRate')||0),taxLabel:value('taxLabel')||(value('country')==='IE'?'VAT':'Tax')};
 }

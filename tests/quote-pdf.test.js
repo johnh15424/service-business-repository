@@ -6,3 +6,14 @@ test('both PDF designs produce real A4 files and distinct output',async()=>{cons
 test('long names, item descriptions and terms paginate without losing pages',async()=>{const bytes=await renderQuote({...q,business:{name:'A long business name '.repeat(8)},items:Array.from({length:10},()=>({description:'Long description '.repeat(100),amountMinor:100})),terms:'Terms '.repeat(900)},fonts);const doc=await PDFDocument.load(bytes);assert.ok(doc.getPageCount()>3);assert.ok(doc.getPageCount()<30);});
 test('unsupported glyphs fail before checkout rather than generating broken text',async()=>{await assert.rejects(()=>renderQuote({...q,business:{name:'Business 🛠️'}},fonts),/character/);});
 test('all price calculator pages use a runtime wired to the shared editor',()=>{const names=readdirSync('public',{withFileTypes:true}).filter(d=>d.isDirectory()&&d.name.endsWith('-price-calculator'));assert.ok(names.length>=20);for(const d of names){const html=readFileSync('public/'+d.name+'/index.html','utf8');const scripts=[...html.matchAll(/src="(\/assets\/[^\"]+\.js)"/g)].map(m=>m[1]);const runtimes=scripts.filter(s=>/app\.js|factory-calculator\.js|generated-calculator\.js/.test(s));assert.ok(runtimes.some(r=>readFileSync('public'+r,'utf8').includes('mountQuotePreview(')),d.name);}});
+test('preview is the final PDF stamped with the watermark; the final PDF has none',async()=>{
+  const {renderQuote}=await import('../src/quote-pdf.js');const fs=await import('node:fs');const {PDFDocument}=await import('pdf-lib');
+  const f={regular:fs.readFileSync('public/assets/fonts/DejaVuSans.ttf'),bold:fs.readFileSync('public/assets/fonts/DejaVuSans-Bold.ttf')};
+  const q={niche:'window_cleaning',service:'Window Cleaning',country:'Ireland',currency:'EUR',business:{name:'Clear View Ltd',address:'1 Main St',email:'',phone:''},customer:{name:'Jane',address:'2 High St'},reference:'Q-1',date:'2026-10-12',validDays:30,template:'classic',taxRegistered:false,taxRate:0,taxLabel:'VAT',items:[{description:'Window Cleaning – Standard residential clean',amountMinor:11825}],terms:'',logo:null};
+  const final=await renderQuote(q,f),preview=await renderQuote(q,{...f,watermark:true,base:final});
+  const pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const text=async b=>{const d=await pdfjs.getDocument({data:new Uint8Array(b)}).promise;let t='';for(let i=1;i<=d.numPages;i++)t+=(await (await d.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ');return t;};
+  const [ft,pt]=[await text(final),await text(preview)];
+  assert.doesNotMatch(ft,/PREVIEW ONLY/);assert.match(pt,/PREVIEW ONLY/);assert.match(ft,/Clear View Ltd/);assert.match(pt,/Clear View Ltd/);
+  assert.equal((await PDFDocument.load(preview)).getPageCount(),(await PDFDocument.load(final)).getPageCount());
+});
