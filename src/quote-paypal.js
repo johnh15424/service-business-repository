@@ -1,7 +1,14 @@
 /** Credentials are Worker secrets. No provider credentials reach the browser. */
+// Dashboard values typed on phones often gain smart quotes, spaces or Unicode dashes.
+export function approvalState(value) {
+  if(value==null||value==='')return 'missing';
+  if(value==='e2e-verified')return 'exact';
+  const cleaned=String(value).normalize('NFKC').trim().replace(/^["'\u201c\u201d\u2018\u2019`]+|["'\u201c\u201d\u2018\u2019`]+$/g,'').trim().replace(/[\u2010-\u2015\u2212]/g,'-').toLowerCase();
+  return cleaned==='e2e-verified'?'normalized':'invalid';
+}
 export function paymentMode(env) {
   if(env.QUOTE_PAYMENT_MODE==='sandbox')return 'sandbox';
-  if(env.QUOTE_PAYMENT_MODE==='live'&&env.QUOTE_LIVE_APPROVED==='e2e-verified')return 'live';
+  if(env.QUOTE_PAYMENT_MODE==='live'&&approvalState(env.QUOTE_LIVE_APPROVED)!=='invalid'&&approvalState(env.QUOTE_LIVE_APPROVED)!=='missing')return 'live';
   return 'disabled';
 }
 export async function paypal(env,path,{method='GET',body,idempotency}={}) {
@@ -36,7 +43,7 @@ export async function providerReadiness(env,fetchImpl=fetch){
   const configured=env.QUOTE_PAYMENT_MODE;
   if(configured!=='live'&&configured!=='sandbox')return 'mode:'+(configured||'unset');
   const secrets=SECRET_NAMES.map(n=>env[n]?1:0).join('');
-  let out=`mode:${configured}|secrets:${secrets}|approved:${env.QUOTE_LIVE_APPROVED==='e2e-verified'?1:0}`;
+  let out=`mode:${configured}|secrets:${secrets}|approval:${approvalState(env.QUOTE_LIVE_APPROVED)}`;
   if(secrets!=='1111')return out;
   const base=configured==='sandbox'?'https://api-m.sandbox.paypal.com':'https://api-m.paypal.com';
   try{
