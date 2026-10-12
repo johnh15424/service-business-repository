@@ -153,7 +153,7 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
 // Hourly content-free provider readiness record, written by the scheduler or the first config request.
 async function recordReadiness(env){
   if(!env.QUOTE_DB)return;
-  const key='cron:readiness:'+Math.floor(now()/3600);
+  const key='cron:readiness2:'+Math.floor(now()/3600);
   if(await env.QUOTE_DB.prepare('SELECT 1 FROM quote_events WHERE event_key=?').bind(key).first())return;
   await env.QUOTE_DB.prepare('INSERT OR IGNORE INTO quote_events(event_key,quote_id,event,created_at) VALUES(?,?,?,?)').bind(key,'cron','readiness:'+await providerReadiness(env),now()).run();
 }

@@ -56,6 +56,32 @@ export async function providerReadiness(env,fetchImpl=fetch){
     const names=new Set((hook.event_types||[]).map(e=>e.name));
     const host=configured==='live'?['servicepricingtools.com','www.servicepricingtools.com'].includes(url.hostname):url.hostname.endsWith('.workers.dev');
     out+=`|webhook_url:${host&&url.pathname==='/api/quotes/paypal-webhook'?'ok':'mismatch'}|webhook_events:${REQUIRED_EVENTS.filter(n=>names.has(n)||names.has('*')).length}/5`;
+    out+=await cardEvidence(env,base,access_token,fetchImpl);
   }catch{out+='|provider:unreachable';}
+  return out;
+}
+
+// Content-free evidence of how PayPal classifies this merchant for embedded card fields. The JS SDK's
+// CardFields.isEligible() is fundingEligibility.card.eligible && !branded, computed by PayPal per client ID.
+// The client ID is public (it is sent to every browser); only its last 6 characters are recorded so the
+// owner can match it against the Live app in the PayPal dashboard.
+const flags=(value,path='',out=[])=>{
+  if(value&&typeof value==='object')for(const [k,v] of Object.entries(value))flags(v,path?path+'.'+k:k,out);
+  else out.push(typeof value==='boolean'?path+'='+value:path);
+  return out;
+};
+async function cardEvidence(env,base,token,fetchImpl){
+  let out='|client:'+String(env.PAYPAL_CLIENT_ID).slice(-6);
+  try{
+    const res=await fetchImpl('https://www.paypal.com/sdk/js?'+new URLSearchParams({'client-id':env.PAYPAL_CLIENT_ID,components:'card-fields',currency:'EUR',intent:'capture'}),{signal:AbortSignal.timeout(15000)});
+    const text=res.ok?(await res.text()).replaceAll('\\"','"'):'';
+    const at=text.search(/"card"\s*:\s*\{\s*"eligible"/),win=at<0?'':text.slice(at,at+600);
+    const flag=n=>win.match(new RegExp(`"${n}"\\s*:\\s*(true|false)`))?.[1]??'?';
+    out+='|sdk_card:'+(!res.ok?'http'+res.status:at<0?'unparsed':`eligible=${flag('eligible')},branded=${flag('branded')}`);
+  }catch{out+='|sdk_card:unreachable';}
+  try{
+    const res=await fetchImpl(base+'/v2/payments/find-eligible-methods',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({customer:{country_code:'IE'},purchase_units:[{amount:{currency_code:'EUR',value:'3.00'}}]}),signal:AbortSignal.timeout(15000)});
+    out+='|methods:'+(res.ok?flags(await res.json()).join(',').slice(0,400)||'none':'http'+res.status);
+  }catch{out+='|methods:unreachable';}
   return out;
 }
