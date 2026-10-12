@@ -142,6 +142,13 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
     return json({error:/^(Check |Enter |Choose |Add |Tax rate|Validity|The file|Invalid converted|Invalid PNG|Converted logo|A character)/.test(code)?code:'Unable to prepare the quotation. Check your details and logo, then retry.'},400);
   }
 }
+// Captures approved orders whose buyer never returned to the site (closed tab, broken redirect, missed
+// webhook). Only recent checkouts are checked: unapproved PayPal orders lapse after about three hours.
+export async function reconcilePendingCheckouts(env,api=paypal){
+  if(!available(env)||!paymentReady(env))return;
+  const rows=await env.QUOTE_DB.prepare("SELECT * FROM quotes WHERE status='checkout' AND order_id IS NOT NULL AND created_at>? AND expires_at>? LIMIT 20").bind(now()-6*3600,now()).all();
+  for(const q of rows.results){try{await capture(env,q,api);await event(env,q.id,'quote_payment_reconciled');}catch{/* failure code recorded by capture */}}
+}
 export async function cleanExpiredQuotes(env){
   if(!env.QUOTE_DB||!env.QUOTE_FILES)return;
   const rows=await env.QUOTE_DB.prepare('SELECT id FROM quotes WHERE expires_at<? LIMIT 100').bind(now()).all();

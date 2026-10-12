@@ -1,5 +1,7 @@
 const $=id=>document.getElementById(id),status=$('quote-status');
-const match=location.hash.match(/^#([a-f0-9-]{36})\.([a-f0-9]{64})$/);
+// PayPal appends ?token=…&PayerID=… to the return URL, which can land inside the fragment; accept that suffix.
+const match=location.hash.match(/^#([a-f0-9-]{36})\.([a-f0-9]{64})(?:[?&]|$)/);
+if(match&&location.hash.length>102)history.replaceState(null,'',location.pathname+'#'+match[1]+'.'+match[2]);
 let busy=false,paidTracked=false;
 let analyticsEnabled=false;
 const events=[];
