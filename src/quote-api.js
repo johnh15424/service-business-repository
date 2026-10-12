@@ -35,14 +35,25 @@ async function capture(env,q,api=paypal){
   if(q.status==='paid')return;
   // Final file must exist before any capture request can charge the customer.
   if(!await env.QUOTE_FILES.head(q.id+'/final.pdf'))throw Error('PDF_UNAVAILABLE');
-  const order=await api(env,'/v2/checkout/orders/'+q.order_id);
-  if(order.status==='APPROVED'){
-    try{await api(env,'/v2/checkout/orders/'+q.order_id+'/capture',{method:'POST',body:{},idempotency:q.id+'-capture'});}catch{/* Reconcile an ambiguous timeout rather than charging again. */}
-  }
-  await fulfil(env,q,api);
+  let providerStatus='UNKNOWN';
+  try{
+    const order=await api(env,'/v2/checkout/orders/'+q.order_id);providerStatus=order.status||'UNKNOWN';
+    if(order.status==='APPROVED'){
+      try{await api(env,'/v2/checkout/orders/'+q.order_id+'/capture',{method:'POST',body:{},idempotency:q.id+'-capture'});}catch{/* Reconcile an ambiguous timeout rather than charging again. */}
+    }
+    await fulfil(env,q,api);
+  }catch(e){await recordFailure(env,q.id,e.message+':'+providerStatus);throw e;}
 }
+// Content-free diagnostics: an error code and the provider's order status, never customer data.
+async function recordFailure(env,id,code){
+  try{await env.QUOTE_DB.prepare("UPDATE quotes SET failure_code=? WHERE id=? AND status!='paid'").bind(String(code).slice(0,60),id).run();}catch{}
+}
+// Live configuration only operates on the public site. Cloudflare branch previews share the production
+// Worker's bindings and secrets, so any other hostname must never reach live payments or live storage.
+const LIVE_HOSTS=new Set(['servicepricingtools.com','www.servicepricingtools.com']);
 export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}={}) {
   const url=new URL(request.url),path=url.pathname;
+  if(env.QUOTE_PAYMENT_MODE==='live'&&!LIVE_HOSTS.has(url.hostname))env={QUOTE_PAYMENT_MODE:'disabled'};
   if(path==='/api/quotes/config')return json({preview:available(env),checkout:Boolean(paymentReady(env)),mode:paymentMode(env),price:3,currency:'EUR',supportEmail:supportEmail(env)});
   if(!available(env))return json({error:'Quote downloads are not yet available. You can still edit your quotation preview.'},503);
   try{
@@ -51,7 +62,9 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
     if(!webhook){const ip=request.headers.get('CF-Connecting-IP')||'unknown';const limit=await env.QUOTE_LIMITER.limit({key:ip+':'+(request.method==='GET'?'read':'write')});if(!limit.success)return json({error:'Please wait a minute and try again.'},429);}
     if(webhook){
       if(request.method!=='POST'||!paymentReady(env))return json({error:'Unavailable'},503);
-      const e=await limitedBody(request,100000);await verifyWebhook(request,e,env,api);
+      const e=await limitedBody(request,100000);
+      try{await verifyWebhook(request,e,env,api);}
+      catch(err){await event(env,'webhook','webhook_rejected',String(request.headers.get('paypal-transmission-id')||now()).slice(0,80)+':'+err.message).catch(()=>{});throw err;}
       const orderId=e.resource?.supplementary_data?.related_ids?.order_id || (e.event_type==='CHECKOUT.ORDER.APPROVED'?e.resource?.id:null);
       let q=orderId?await env.QUOTE_DB.prepare('SELECT * FROM quotes WHERE order_id=?').bind(orderId).first():null;
       const captureId=e.resource?.supplementary_data?.related_ids?.capture_id || (e.event_type==='PAYMENT.CAPTURE.REVERSED'?e.resource?.id:null);
@@ -99,7 +112,8 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
         if(!approval||!/^https:\/\/(www\.)?(sandbox\.)?paypal\.com\//.test(approval))throw Error('PROVIDER_RETRY');
         await env.QUOTE_DB.prepare("UPDATE quotes SET order_id=?,checkout_url=?,status='checkout',checkout_lock=0 WHERE id=? AND order_id IS NULL").bind(order.id,approval,id).run();
         await event(env,id,'quote_checkout_started');return json({url:approval});
-      }finally{await env.QUOTE_DB.prepare('UPDATE quotes SET checkout_lock=0 WHERE id=?').bind(id).run();}
+      }catch(e){await recordFailure(env,id,'CHECKOUT_'+e.message);throw e;}
+      finally{await env.QUOTE_DB.prepare('UPDATE quotes SET checkout_lock=0 WHERE id=?').bind(id).run();}
     }
     if(action==='capture'&&request.method==='POST'){await capture(env,q,api);return json({status:'paid'});}
     if(action==='status'&&request.method==='GET')return json({status:q.status,expiresAt:q.expires_at,transactionId:q.status==='paid'?'quote_'+q.id:null,checkoutUrl:q.status==='checkout'?q.checkout_url:null});
@@ -131,5 +145,6 @@ export async function handleQuoteApi(request,env,{api=paypal,render=renderQuote}
 export async function cleanExpiredQuotes(env){
   if(!env.QUOTE_DB||!env.QUOTE_FILES)return;
   const rows=await env.QUOTE_DB.prepare('SELECT id FROM quotes WHERE expires_at<? LIMIT 100').bind(now()).all();
+  await env.QUOTE_DB.prepare("DELETE FROM quote_events WHERE quote_id='webhook' AND created_at<?").bind(now()-7*86400).run();
   for(const {id}of rows.results){await env.QUOTE_FILES.delete([id+'/final.pdf',id+'/preview.pdf']);await env.QUOTE_DB.batch([env.QUOTE_DB.prepare('DELETE FROM quote_events WHERE quote_id=?').bind(id),env.QUOTE_DB.prepare('DELETE FROM quotes WHERE id=?').bind(id)]);}
 }

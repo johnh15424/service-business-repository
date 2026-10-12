@@ -10,7 +10,9 @@ export function mountQuotePreview({name='Service',niche=name,getSnapshot}={}) {
   const css=el('link','',{rel:'stylesheet',href:'/assets/quote.css'});document.head.append(css);
   const entry=el('section','',{class:'quote-entry'}),open=el('button','Generate Professional Quote',{type:'button',class:'primary'});
   entry.append(el('strong','Your price. Your branding. Ready to send.'),el('p','Create a professional quotation. Review it before a €3 once-off PDF purchase. No subscription.'),open);
-  estimate.querySelector('.estimate-top')?.after(entry);if(!entry.isConnected)estimate.prepend(entry);
+  // Hidden until the server confirms checkout is fully configured, so no €3 offer is shown that cannot be bought.
+  entry.hidden=true;estimate.querySelector('.estimate-top')?.after(entry);if(!entry.isConnected)estimate.prepend(entry);
+  fetch('/api/quotes/config').then(r=>r.ok?r.json():null).then(c=>{if(c?.checkout)entry.hidden=false;}).catch(()=>{});
   const dialog=el('dialog','',{id:'spt-quote-preview',class:'quote-dialog','aria-labelledby':'quote-title'}),inner=el('div','',{class:'quote-inner'});
   const close=el('button','Close',{type:'button',class:'secondary'});close.addEventListener('click',()=>dialog.close());
   inner.append(close,el('h2','Create your professional quote',{id:'quote-title'}));
