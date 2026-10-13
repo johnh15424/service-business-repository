@@ -4,9 +4,9 @@
 // and so Google sees every calculator and every toolkit link. public/assets/directory-filter.js
 // only shows and hides cards that are already in the document; it never creates them.
 //
-// Only status: 'live' niches are rendered, so build-stage niches stay off the directory until
-// their products and funnels exist.
-import { liveNiches } from '../public/assets/niche-registry.js';
+// Toolkit availability stays separate from calculator availability.
+// Include verified live calculators even when their toolkit products are not connected.
+import { liveCalculatorNiches } from '../public/assets/niche-registry.js';
 
 const FALLBACK_DESCRIPTION =
   'Build a quote from labour, direct job costs, travel, overhead, fees, margin and tax.';
@@ -22,11 +22,11 @@ function card(niche) {
   const price = Number(niche.proPrice || 24.99).toFixed(2);
   const pro = niche.proUrl
     ? `<a class="directory-pro" href="${escapeHtml(niche.proUrl)}" data-funnel="${escapeHtml(niche.id)}" data-paid-cta="directory-card">Pro Pricing &amp; Profit Toolkit · €${price} ↗</a>`
-    : '<span class="coming">Pro Toolkit being prepared</span>';
+    : '';
   return `<article class="directory-card" data-niche="${escapeHtml(niche.id)}" data-category="${escapeHtml(niche.category)}" data-name="${escapeHtml(niche.name.toLowerCase())}"><span class="directory-category">${escapeHtml(niche.category)}</span><h3>${escapeHtml(niche.name)}</h3><p>${escapeHtml(description)}</p><a class="directory-open" href="${escapeHtml(niche.calculatorPath)}">Open free calculator ↗</a>${pro}</article>`;
 }
 
-export function renderDirectory(niches = liveNiches()) {
+export function renderDirectory(niches = liveCalculatorNiches()) {
   const cards = niches.map(card).join('');
   // The controls container ships EMPTY. directory-filter.js injects the search field and the
   // category chips together, so a visitor without JavaScript never sees a filter control that
