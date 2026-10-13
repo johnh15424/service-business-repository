@@ -59,9 +59,6 @@ jobs:
           node-version: '22.22.2'
           cache: npm
       - run: npm ci
-      - name: Payhip products linked from the site (public pages, no orders; informational)
-        continue-on-error: true
-        run: node tests/browser/payhip-check.mjs
       - name: Wait for the Workers Builds preview of this commit
         env:
           BRANCH: ${{ github.head_ref }}
@@ -80,5 +77,8 @@ jobs:
         run: |
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps chromium
+      - name: Payhip products linked from the site (public pages, no orders; informational)
+        continue-on-error: true
+        run: node tests/browser/payhip-check.mjs
       - name: Audit the deployed preview
         run: node tests/browser/audit.mjs "$PREVIEW_URL" --deployed --expect-tag no --expect-quote=hidden --json /tmp/preview-audit.json
