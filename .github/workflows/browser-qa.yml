@@ -59,6 +59,9 @@ jobs:
           node-version: '22.22.2'
           cache: npm
       - run: npm ci
+      - name: Payhip products linked from the site (public pages, no orders; informational)
+        continue-on-error: true
+        run: node tests/browser/payhip-check.mjs
       - name: Wait for the Workers Builds preview of this commit
         env:
           BRANCH: ${{ github.head_ref }}
