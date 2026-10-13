@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderDirectory } from '../factory/directory.mjs';
-import { liveNiches, nicheRegistry } from '../public/assets/niche-registry.js';
+import { liveNiches, liveCalculatorNiches, nicheRegistry } from '../public/assets/niche-registry.js';
 
 // Renders in memory and compares against the committed page. Never writes to public/.
 const committed = () => readFileSync(join('public', 'calculators', 'index.html'), 'utf8');
@@ -17,7 +17,7 @@ test('committed calculator directory matches freshly rendered output', () => {
 });
 
 test('every live niche has a directoryDescription', () => {
-  for (const niche of liveNiches()) {
+  for (const niche of liveCalculatorNiches()) {
     assert.equal(typeof niche.directoryDescription, 'string', `${niche.id}: missing directoryDescription`);
     assert.ok(niche.directoryDescription.length > 20, `${niche.id}: directoryDescription too short`);
   }
@@ -25,7 +25,7 @@ test('every live niche has a directoryDescription', () => {
 
 test('directory renders one static crawlable card per live niche', () => {
   const html = committed();
-  const live = liveNiches();
+  const live = liveCalculatorNiches();
   const cards = html.match(/<article class="directory-card"/g) || [];
   assert.equal(cards.length, live.length, 'card count must match the live niche count');
   for (const niche of live) {
@@ -41,7 +41,7 @@ test('directory renders one static crawlable card per live niche', () => {
 
 test('build-stage niches never reach the directory', () => {
   const html = committed();
-  for (const niche of nicheRegistry.filter(n => n.status !== 'live')) {
+  for (const niche of nicheRegistry.filter(n => n.status !== 'live' && !n.calculatorLive)) {
     assert.ok(!html.includes(`data-niche="${niche.id}"`), `${niche.id}: build-stage niche must not be listed`);
     assert.ok(!html.includes(niche.calculatorPath), `${niche.id}: build-stage path must not be listed`);
   }
