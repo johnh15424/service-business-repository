@@ -7,6 +7,9 @@ const config=JSON.parse(readFileSync('wrangler.jsonc','utf8').replace(/^\s*\/\/.
 test('production config is isolated from sandbox and never commits the live approval',()=>{
   assert.equal(config.name,'service-business-repository');
   assert.ok(!('QUOTE_LIVE_APPROVED' in config.vars));
+  // Non-EUR price points are a commercial decision, so the approval variable is set deliberately on the
+  // deployed Worker and never committed. Unset means EUR only, which is the price the site advertises.
+  for(const vars of [config.vars,config.env.sandbox.vars])assert.ok(!('QUOTE_CURRENCIES_APPROVED' in vars));
   for(const key of Object.keys(config.vars))assert.doesNotMatch(key,/PAYPAL|SECRET|TOKEN/);
   assert.match(config.vars.QUOTE_SUPPORT_EMAIL,/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
   const sandbox=config.env.sandbox;

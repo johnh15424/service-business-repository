@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderDirectory } from '../factory/directory.mjs';
-import { liveNiches, nicheRegistry } from '../public/assets/niche-registry.js';
+import { liveNiches, liveCalculatorNiches, nicheRegistry } from '../public/assets/niche-registry.js';
 
 // Renders in memory and compares against the committed page. Never writes to public/.
 const committed = () => readFileSync(join('public', 'calculators', 'index.html'), 'utf8');
@@ -17,7 +17,7 @@ test('committed calculator directory matches freshly rendered output', () => {
 });
 
 test('every live niche has a directoryDescription', () => {
-  for (const niche of liveNiches()) {
+  for (const niche of liveCalculatorNiches()) {
     assert.equal(typeof niche.directoryDescription, 'string', `${niche.id}: missing directoryDescription`);
     assert.ok(niche.directoryDescription.length > 20, `${niche.id}: directoryDescription too short`);
   }
@@ -25,7 +25,7 @@ test('every live niche has a directoryDescription', () => {
 
 test('directory renders one static crawlable card per live niche', () => {
   const html = committed();
-  const live = liveNiches();
+  const live = liveCalculatorNiches();
   const cards = html.match(/<article class="directory-card"/g) || [];
   assert.equal(cards.length, live.length, 'card count must match the live niche count');
   for (const niche of live) {
@@ -41,7 +41,7 @@ test('directory renders one static crawlable card per live niche', () => {
 
 test('build-stage niches never reach the directory', () => {
   const html = committed();
-  for (const niche of nicheRegistry.filter(n => n.status !== 'live')) {
+  for (const niche of nicheRegistry.filter(n => n.status !== 'live' && !n.calculatorLive)) {
     assert.ok(!html.includes(`data-niche="${niche.id}"`), `${niche.id}: build-stage niche must not be listed`);
     assert.ok(!html.includes(niche.calculatorPath), `${niche.id}: build-stage path must not be listed`);
   }
@@ -154,11 +154,14 @@ test('no hardcoded Payhip URLs are introduced in generated directory source', ()
   assert.doesNotMatch(resultCta, /payhip\.com/, 'compact CTA must read URLs from the registry');
 });
 
-test('compact result CTA is shared, registry-driven and idempotent', () => {
+test('three-tier conversion component is shared, registry-driven and idempotent', () => {
   const source = readFileSync(join('public', 'assets', 'result-cta.js'), 'utf8');
   assert.match(source, /import \{ nicheById \}/, 'must resolve products from the registry');
-  assert.match(source, /getElementById\(MOUNT_ID\)/, 'must guard against duplicate insertion');
-  assert.match(source, /data-paid-cta="result-compact"/, 'compact CTA needs its own tracking placement');
+  assert.match(source, /getElementById\(OFFERS_ID\)\) return/, 'must guard against duplicate insertion');
+  assert.doesNotMatch(source, /payhip\.com/, 'product URLs come only from the registry');
+  assert.doesNotMatch(source, /coming soon|being prepared/i, 'no placeholder offers');
+  assert.match(source, /niche\.freeUrl \?/, 'checklist offer only when a checklist exists');
+  assert.match(source, /niche\.proUrl \?/, 'toolkit offer only when a toolkit exists');
 
   const runtimes = [
     'factory-calculator.js',
@@ -180,8 +183,11 @@ test('compact result CTA is shared, registry-driven and idempotent', () => {
       1,
       `${runtime}: expected exactly one mount call`
     );
-    assert.doesNotMatch(js, /payhip\.com\/b\/[A-Za-z0-9]+["'][^>]*data-paid-cta="result-compact"/,
-      `${runtime}: compact CTA must not hardcode a Payhip URL`);
+    assert.doesNotMatch(js, /hero-commercial|being prepared/, `${runtime}: legacy single-tier offers must be gone`);
+    const mount = js.indexOf('mountCompactPaidCta(');
+    for (const binding of ["querySelectorAll('[data-free-cta]')", "querySelectorAll('[data-paid-cta]')"]) {
+      assert.ok(js.indexOf(binding) > mount, `${runtime}: offers must mount before ${binding} binds tracking`);
+    }
   }
 });
 

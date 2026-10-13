@@ -191,6 +191,8 @@ export const nicheRegistry = [
     name: 'Dryer Vent Cleaning',
     category: 'Home & Property',
     status: 'build',
+    calculatorLive: true,
+    directoryDescription: 'Price dryer vent cleaning from labour, travel, access, equipment wear, overhead and margin.',
     calculatorPath: '/dryer-vent-cleaning-price-calculator/',
     freeUrl: null,
     proUrl: null,
@@ -201,6 +203,8 @@ export const nicheRegistry = [
     name: 'Upholstery Cleaning',
     category: 'Home & Property',
     status: 'build',
+    calculatorLive: true,
+    directoryDescription: 'Price upholstery cleaning from labour, fabric treatment, materials, travel, overhead and margin.',
     calculatorPath: '/upholstery-cleaning-price-calculator/',
     freeUrl: null,
     proUrl: null,
@@ -211,6 +215,8 @@ export const nicheRegistry = [
     name: 'Mobile Tyre Service',
     category: 'Automotive',
     status: 'build',
+    calculatorLive: true,
+    directoryDescription: 'Price mobile tyre services from labour, tyres, travel, equipment, overhead and margin.',
     calculatorPath: '/mobile-tyre-service-price-calculator/',
     freeUrl: null,
     proUrl: null,
@@ -281,4 +287,9 @@ export function nichesByCategory(){
 
 export function nicheById(id){
   return nicheRegistry.find(n => n.id === id) || null;
+}
+
+// Calculator availability is independent of downloadable toolkit availability.
+export function liveCalculatorNiches(){
+  return nicheRegistry.filter(n => n.status === 'live' || n.calculatorLive === true);
 }

@@ -1,4 +1,4 @@
-import { QUOTE_PRICE, quotePriceMinor, priceValue } from '../public/assets/quote-model.js';
+import { QUOTE_PRICE, quotePriceMinor, quoteCurrency, priceValue } from '../public/assets/quote-model.js';
 /** Credentials are Worker secrets. No provider credentials reach the browser. */
 // Dashboard values typed on phones often gain smart quotes, spaces or Unicode dashes.
 export function approvalState(value) {
@@ -31,14 +31,16 @@ async function accessToken(env,base){
   cachedToken={key,value:t.access_token,expires:Date.now()+Math.max(0,Number(t.expires_in||0)-300)*1000};
   return cachedToken.value;
 }
-// Verifies against the price recorded when this quote's order was created, never the current list price.
+// Verifies against the price AND currency recorded when this quote's order was created, never the
+// current list price and never whatever the provider response happens to say. A tampered client that
+// asks for a cheaper currency still gets an order priced by the server and checked against this row.
 export function verifyPaidOrder(order,quote,merchantId) {
-  const units=order.purchase_units,expected=quotePriceMinor(quote),cents=v=>Math.round(Number(v)*100);
+  const units=order.purchase_units,expected=quotePriceMinor(quote),currency=quoteCurrency(quote),cents=v=>Math.round(Number(v)*100);
   if(order.id!==quote.order_id||order.status!=='COMPLETED'||order.intent!=='CAPTURE'||units?.length!==1)throw Error('PAYMENT_NOT_CONFIRMED');
   const u=units[0],caps=u.payments?.captures;
-  if(u.custom_id!==quote.id||u.payee?.merchant_id!==merchantId||u.amount?.currency_code!=='EUR'||cents(u.amount?.value)!==expected||caps?.length!==1)throw Error('PAYMENT_MISMATCH');
+  if(u.custom_id!==quote.id||u.payee?.merchant_id!==merchantId||u.amount?.currency_code!==currency||cents(u.amount?.value)!==expected||caps?.length!==1)throw Error('PAYMENT_MISMATCH');
   const c=caps[0];
-  if(c.status!=='COMPLETED'||c.amount?.currency_code!=='EUR'||cents(c.amount?.value)!==expected||!c.id)throw Error('PAYMENT_NOT_CONFIRMED');
+  if(c.status!=='COMPLETED'||c.amount?.currency_code!==currency||cents(c.amount?.value)!==expected||!c.id)throw Error('PAYMENT_NOT_CONFIRMED');
   return c.id;
 }
 export async function verifyWebhook(request,event,env,api=paypal) {

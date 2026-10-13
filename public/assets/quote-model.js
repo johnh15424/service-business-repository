@@ -5,7 +5,53 @@ export const QUOTE_PRICE = Object.freeze({currency:'EUR', minor:400});
 export const LEGACY_QUOTE_PRICE_MINOR = 300;
 export const quotePriceMinor = quote => Number.isInteger(quote?.price_minor) ? quote.price_minor : LEGACY_QUOTE_PRICE_MINOR;
 export const priceValue = minor => (minor / 100).toFixed(2);
-export const priceLabel = minor => '€' + (minor % 100 ? (minor / 100).toFixed(2) : String(minor / 100));
+
+// ---- Checkout currency -------------------------------------------------------------------------
+// The currency the CUSTOMER PAYS US IN. This is independent of the currency written on the
+// quotation document they are buying, which comes from their own calculator snapshot: an Irish
+// trader can pay us in EUR for a quotation denominated in USD, and a US trader the reverse.
+//
+// EUR 4.00 is the live price and the base currency. USD and GBP are PROPOSED price points only.
+// They stay inert — never offered, never charged — until the owner approves them by listing the
+// codes in the QUOTE_CURRENCIES_APPROVED variable, exactly as QUOTE_LIVE_APPROVED gates live mode.
+export const BASE_CURRENCY = QUOTE_PRICE.currency;
+export const CHECKOUT_PRICES = Object.freeze({EUR: QUOTE_PRICE.minor, USD: 499, GBP: 349});
+export const PROPOSED_CURRENCIES = Object.freeze(['USD', 'GBP']);
+// PayPal rejects a decimal amount in HUF, JPY and TWD. Every currency above takes two decimals,
+// so minor units are hundredths throughout; add a non-decimal currency and priceValue must change.
+export const checkoutPriceMinor = currency => Object.hasOwn(CHECKOUT_PRICES, currency) ? CHECKOUT_PRICES[currency] : null;
+/** Codes this deployment may charge in. Always includes the base currency, never anything unpriced. */
+export function enabledCurrencies(env = {}) {
+  const approved = new Set(String(env.QUOTE_CURRENCIES_APPROVED ?? '').normalize('NFKC').toUpperCase().split(/[^A-Z]+/).filter(Boolean));
+  return [BASE_CURRENCY, ...PROPOSED_CURRENCIES.filter(c => approved.has(c) && checkoutPriceMinor(c))];
+}
+// Cloudflare's request.cf.country only. No external geolocation service, no extra subscription.
+const countries = (codes, currency) => codes.split(' ').map(c => [c, currency]);
+const COUNTRY_CURRENCY = Object.freeze(Object.fromEntries([
+  // Euro area plus the territories and states that use the euro in practice.
+  ...countries('AD AT BE BG CY DE EE ES FI FR GR HR IE IT LT LU LV MC ME MT NL PT SI SK SM VA XK', 'EUR'),
+  // United States and the territories that use the US dollar.
+  ...countries('US AS GU MP PR UM VI', 'USD'),
+  ...countries('GB GG IM JE', 'GBP')
+]));
+export const countryCurrency = country => COUNTRY_CURRENCY[String(country ?? '').trim().toUpperCase()] ?? null;
+/**
+ * Default checkout currency for a visitor, with an explicit fallback flag.
+ * `fallback` is true whenever we cannot charge the visitor in their own currency — unknown country,
+ * or a country whose currency is not approved here — so the UI can say so before they pay.
+ */
+export function resolveCheckoutCurrency(country, enabled = [BASE_CURRENCY]) {
+  const list = enabled.includes(BASE_CURRENCY) ? enabled : [BASE_CURRENCY, ...enabled];
+  const requested = countryCurrency(country);
+  if (requested && list.includes(requested)) return {currency: requested, requested, fallback: false};
+  return {currency: BASE_CURRENCY, requested, fallback: true};
+}
+/** The currency an existing quote's order was created in. Orders predating this column were all EUR. */
+export const quoteCurrency = quote => /^[A-Z]{3}$/.test(quote?.price_currency ?? '') ? quote.price_currency : BASE_CURRENCY;
+export const priceLabel = (minor, currency = BASE_CURRENCY) => {
+  const digits = currencyDigits(currency), unit = 10 ** digits;
+  return new Intl.NumberFormat('en-IE', {style: 'currency', currency, currencyDisplay: 'narrowSymbol', minimumFractionDigits: minor % unit ? digits : 0}).format(minor / unit);
+};
 export function currencyDigits(currency) {
   if (!/^[A-Z]{3}$/.test(currency) || (Intl.supportedValuesOf && !Intl.supportedValuesOf('currency').includes(currency))) throw Error('Choose a recognised currency.');
   return new Intl.NumberFormat('en',{style:'currency',currency}).resolvedOptions().maximumFractionDigits;

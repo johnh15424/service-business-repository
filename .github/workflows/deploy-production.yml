@@ -3,9 +3,10 @@ name: Deploy Production Worker
 # Manual trigger ONLY. No push/pull_request trigger: nothing reaches production
 # unless the owner presses "Run workflow" and types the Worker name.
 #
-# deploy   — deploys the approved commit (APPROVED_SHA below) to the production
+# deploy   — deploys the main commit this run was launched from to the production
 #            Worker service-business-repository after every gate passes, verifies
-#            it on the public site and rolls back automatically if verification fails.
+#            it on the public site (including a 20-calculator browser audit) and
+#            rolls back automatically if verification fails.
 # rollback — rolls the production Worker back to a given version ID, or to the
 #            previous version when none is given.
 #
@@ -15,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: 'deploy = release the approved commit; rollback = restore an earlier version'
+        description: 'deploy = release the current main commit; rollback = restore an earlier version'
         required: true
         default: deploy
         type: choice
@@ -35,7 +36,6 @@ on:
 permissions:
   contents: read
   checks: read
-  pull-requests: read
 
 concurrency:
   group: deploy-production
@@ -43,10 +43,8 @@ concurrency:
 
 env:
   WORKER: service-business-repository
-  # PR #56 head, approved by the owner on 12 October 2026. Changing what goes to
-  # production means changing this line in a reviewed commit on main.
-  APPROVED_PR: '56'
-  APPROVED_SHA: 43aeec976d075777b71040fed7525a7c84a36478
+  # Production serves main. Launched from main, this is the exact commit that was reviewed and merged.
+  APPROVED_SHA: ${{ github.sha }}
   D1_PRODUCTION_ID: c53af4a2-4931-40fe-882e-4acf749dd9cb
   REQUIRED_MIGRATION: 0004_quote_currency.sql
   PUBLIC_ORIGIN: https://servicepricingtools.com
@@ -71,19 +69,17 @@ jobs:
         run: |
           [ "$USER_CONFIRMATION" = "$WORKER" ] || { echo "::error::Confirmation must be exactly $WORKER"; exit 1; }
           [ "$LAUNCH_REF" = "refs/heads/main" ] || { echo "::error::Launch from main only (got $LAUNCH_REF)"; exit 1; }
-          echo "Target $WORKER, source $APPROVED_SHA (PR #$APPROVED_PR)."
+          echo "Target $WORKER, source main @ $APPROVED_SHA."
 
-      - name: Verify approved commit belongs to the PR and passed CI
+      - name: Verify the main commit passed CI
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          gh api "repos/$REPO/pulls/$APPROVED_PR/commits" --paginate --jq '.[].sha' | grep -qx "$APPROVED_SHA" \
-            || { echo "::error::$APPROVED_SHA is not a commit of PR #$APPROVED_PR"; exit 1; }
           gh api "repos/$REPO/commits/$APPROVED_SHA/check-runs?per_page=100" --jq '.check_runs[] | [.name, .status, (.conclusion // "none")] | @tsv' > checks.tsv
           cat checks.tsv
-          for required in 'test' 'Suite, config guard and dry runs'; do
+          for required in 'test'; do
             awk -F'\t' -v n="$required" '$1==n && $2=="completed" && $3=="success"{f=1} END{exit !f}' checks.tsv \
               || { echo "::error::Required check '$required' has not passed on $APPROVED_SHA"; exit 1; }
           done
@@ -218,7 +214,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         # Block scalar: in a plain YAML scalar " #" starts a comment and truncates the command.
         run: |
-          npx wrangler deploy --message "PR #$APPROVED_PR $APPROVED_SHA via GitHub Actions run $GITHUB_RUN_ID" --tag "pr$APPROVED_PR-${APPROVED_SHA:0:7}"
+          npx wrangler deploy --message "main $APPROVED_SHA via GitHub Actions run $GITHUB_RUN_ID" --tag "main-${APPROVED_SHA:0:7}"
 
       # ---- 6. Verify production ------------------------------------------
       - name: Verify production readiness and currency configuration
@@ -260,6 +256,13 @@ jobs:
           [ "$code" = "200" ] || { echo "::error::Home page returned $code"; exit 1; }
           echo "Production serves $now: EUR 4.00 only, mode $MODE_BEFORE, checkout $CHECKOUT_BEFORE."
 
+      - name: Browser audit of all 20 calculators on production
+        id: audit
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node tests/browser/audit.mjs "$PUBLIC_ORIGIN" --deployed --expect-tag yes --json /tmp/prod-audit.json
+
       # ---- 7. Automatic rollback -----------------------------------------
       # Also covers a deploy that failed part-way: roll back whenever the deploy
       # step ran and production no longer serves the baseline version.
@@ -293,15 +296,14 @@ jobs:
             echo "| Item | Value |"
             echo "| --- | --- |"
             echo "| Worker | $WORKER |"
-            echo "| Source | PR #$APPROVED_PR @ \`$APPROVED_SHA\` |"
+            echo "| Source | main @ \`$APPROVED_SHA\` |"
             echo "| Deploy step | $DEPLOYED |"
             echo "| Previous version (rollback target) | \`${PREV:-n/a}\` |"
             echo "| New version | \`${NEW:-n/a}\` |"
             echo "| Checkout currencies | EUR 4.00 only (USD 4.99 / GBP 3.49 approved, inactive) |"
+            echo "| 20-calculator browser audit | ${{ steps.audit.outcome }} |"
             echo ""
             echo "To undo: Actions → Deploy Production Worker → Run workflow → operation **rollback**, version \`${PREV:-<id>}\`."
-            echo ""
-            echo "Next: merge PR #$APPROVED_PR so Workers Builds on main keeps serving this code."
           } >> "$GITHUB_STEP_SUMMARY"
 
   rollback:

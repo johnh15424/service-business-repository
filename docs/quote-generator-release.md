@@ -96,9 +96,151 @@ Token: create the sandbox Worker once in the dashboard (empty Hello World named 
 
 GitHub secrets (Settings > Environments > sandbox): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and when ready `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_CLIENT_SECRET`, `PAYPAL_SANDBOX_MERCHANT_ID`, `PAYPAL_SANDBOX_WEBHOOK_ID`.
 
+## International checkout currency (12 October 2026)
+
+Most target customers are in the United States, so the checkout can now charge in the buyer's own
+currency. Nothing about the EUR 4.00 price has changed, and no non-EUR price is live.
+
+### How it is gated
+
+`QUOTE_CURRENCIES_APPROVED` is a release gate in the same spirit as `QUOTE_LIVE_APPROVED`. Unset, the
+site is EUR-only and behaves exactly as before: one currency in the selector (hidden), EUR orders, EUR
+verification. Setting it to `USD,GBP` on the deployed Worker turns those on. It is deliberately not
+committed to `wrangler.jsonc`, and a test fails if it ever is. A code with no price point in
+`CHECKOUT_PRICES` can never be enabled however the variable is spelled.
+
+### Price points — APPROVED BY OWNER, 12 October 2026
+
+USD 4.99, GBP 3.49 and EUR 4.00 are approved. They sit in `CHECKOUT_PRICES`
+(`public/assets/quote-model.js`). Approval of the amounts is not activation: USD and GBP remain inert
+until `QUOTE_CURRENCIES_APPROVED` is set on the deployed Worker, which is gated on the sandbox evidence
+below. ECB reference rates for 12 October 2026: EUR/USD 1.1181, EUR/GBP 0.84478, so EUR 4.00 is
+USD 4.47 / GBP 3.38.
+
+| Currency | Proposed | Straight conversion | In EUR at today's rate | Why |
+| --- | --- | --- | --- | --- |
+| EUR | 4.00 | — | 4.00 | Unchanged live price. |
+| USD | 4.99 | 4.47 | 4.46 | Standard price point in the main target market; the ~12% margin over conversion absorbs PayPal's cross-border and FX spread, which lands on us when we settle to a EUR balance. |
+| GBP | 3.49 | 3.38 | 4.13 | Nearest clean point above conversion; keeps UK within a few cent of the euro price. |
+
+Prices are not negotiated at runtime and never come from the browser. Changing a number later is a
+one-line edit plus a test update.
+
+### Behaviour
+
+- Default currency comes from Cloudflare's own `request.cf.country` at the edge. No geolocation service,
+  no new subscription. US and US territories map to USD, GB/GG/IM/JE to GBP, the euro area to EUR.
+- Visitors can override the default with a selector next to the pay buttons. The choice is kept in
+  `sessionStorage` for the tab, and the server's `/api/quotes/config` list is the only source of what may
+  be offered. A stored choice that is no longer offered is discarded.
+- A country whose currency we do not charge in falls back to EUR, and the page says so before payment,
+  naming the currency it could not use where it knows it ("We cannot charge in CAD yet…").
+- The total and both pay buttons always show the amount and currency about to be charged.
+- Once a PayPal order exists its currency is fixed: PayPal prices an order at creation, so a later switch
+  is refused with 409 and the selector is locked to the prepared currency rather than charging a
+  different amount from the one on screen. Creating a new preview releases the lock.
+- The currency is part of the PayPal request ID (`<quote>-<CUR>-<minor>`), so a retry can never reuse an
+  order created at another price or in another currency. Duplicate-checkout prevention is unchanged.
+- The PayPal JS SDK is priced per currency, so it is loaded once per currency into its own
+  `data-namespace`; card fields are torn down and re-rendered when the currency changes.
+- `price_currency` (migration `0004_quote_currency.sql`) records what the order was created in. Capture
+  verification, the per-download capture re-check and the status endpoint all read it back. NULL means an
+  order from before this change: still verified as EUR, never re-priced.
+- GA4 `purchase`, `paid_purchase` and `quote_payment_verified` report the recorded currency and amount,
+  so Ads revenue matches PayPal settlement. The one-sale-per-transaction guard is unchanged.
+- Consent handling, refund and reversal revocation, idempotency and expiry are untouched.
+
+### Owner actions
+
+1. ~~Approve or amend the USD and GBP price points above.~~ Done, 12 October 2026.
+2. Confirm on the PayPal merchant account whether USD and GBP are **received** currencies or auto-converted
+   to the EUR balance, and at what conversion spread. PayPal supports all three for Orders v2
+   (25 currencies; EUR, USD and GBP are all two-decimal), but whether this account holds balances or
+   converts on receipt is account-specific and changes the margin on the table above. STILL OPEN: no
+   PayPal credential exists in any environment reachable from CI or an agent session, so this cannot be
+   answered from code.
+3. Review the seller tax treatment of charging non-EUR for the quotation-generation service.
+4. After sandbox e2e in all three currencies, set `QUOTE_CURRENCIES_APPROVED=USD,GBP` on the Worker
+   (`npx wrangler secret put` is not needed; it is a plain var). Leave it unset to stay EUR-only.
+
+### Activation order — migration before code, in both environments
+
+`price_currency` is written on every checkout by this branch, so the column must exist before the code
+that writes it is serving traffic. Deploying the Worker ahead of the migration breaks checkout at the
+SQL level in whichever environment it happens in. Both D1 databases are currently at 0003.
+
+1. `npx wrangler d1 migrations apply spt-quotes-sandbox --env sandbox --remote` (applies 0004 only).
+2. Deploy the sandbox Worker from this branch. Note that `deploy-quote-sandbox.yml` is pinned to
+   `feature/quote-generator-preview` and must be repointed first.
+3. Run the sandbox gates below in EUR, USD and GBP.
+4. Merge to `main` only after those pass.
+5. `npx wrangler d1 migrations apply spt-quotes-production --remote` BEFORE any production deploy.
+6. Deploy production. Checkout stays EUR-only: `QUOTE_CURRENCIES_APPROVED` is unset, and live payments
+   remain gated by `QUOTE_LIVE_APPROVED` independently.
+7. Set `QUOTE_CURRENCIES_APPROVED=USD,GBP` only when steps 1–6 are done and the merchant-currency
+   question above is answered.
+
+### Verification performed, 12 October 2026 (branch `feature/quote-checkout-currency`, PR #56 draft)
+
+Evidence, and what each item does NOT prove.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Full suite, clean CI, real dependencies | pass | Calculator QA run 38317316245 and Quote Release Checks run 38317621419, both on GitHub-hosted runners after `npm ci`. `npm test` exits non-zero on any failure, so a green step is a green suite. |
+| Syntax checks (`npm run check`) | pass | Same runs. |
+| Migrations apply in order on an empty database | pass | `Verify migrations apply in order` step: 0001–0004 applied in sequence, `quotes` asserted to carry `price_currency` plus the columns the Worker reads. Re-applying 0004 is correctly rejected (`duplicate column name`), so it is a once-only migration like 0003. |
+| Wrangler dry run, production env | pass | `Dry run production environment` step; bindings `QUOTE_DB (spt-quotes-production)`, `spt-quotes-production-private (eu)`, `QUOTE_PAYMENT_MODE ("live")` all resolved. Nothing uploaded; a dry run needs no Cloudflare credential. |
+| Wrangler dry run, sandbox env | pass | `Dry run sandbox environment` step; `spt-quotes-sandbox`, `spt-quotes-sandbox-private (eu)`, `QUOTE_PAYMENT_MODE ("sandbox")` resolved. |
+| `QUOTE_CURRENCIES_APPROVED` not committed | pass | Asserted by `production-config.test.js` and again by a grep over the resolved production dry run. |
+| No conflict with `main` | pass | Branch is 0 commits behind, N ahead of `origin/main` (`2f81473`); the merge is a fast-forward, so a conflict is not possible. |
+| Sandbox D1 migration state | 0004 pending, will apply cleanly | `d1_migrations` on `spt-quotes-sandbox` lists 0001–0003 only; `quotes` has `price_minor` and no `price_currency`. |
+| Production D1 migration state | 0004 pending | `d1_migrations` on `spt-quotes-production` lists 0001–0003 only. **This is a hard ordering requirement — see activation steps.** |
+| Genuine PayPal sandbox checkout, any currency | NOT DONE | See below. |
+
+#### Why no genuine sandbox transaction exists
+
+The sandbox Worker `service-business-repository-sandbox` does now exist (created 11 October, last
+modified 12 October 09:43) and its scheduler reports `ready`, meaning all four PayPal secrets and a
+valid support address are configured. But it is running an **old build**: the two orders it created on
+12 October (09:03 and 09:06) both have `price_minor = NULL`, and the current code records a price on
+every checkout. There are no `readiness:` rows either. So the deployed build predates both price
+recording and this branch entirely.
+
+Its event ledger has 3 `quote_preview_completed` and 2 `quote_checkout_started`, and **zero**
+`quote_payment_verified` and zero `quote_pdf_served`. Both orders sit at
+`PAYMENT_NOT_CONFIRMED:PAYER_ACTION_REQUIRED` — created, never approved by a payer. No PayPal
+transaction has ever completed in this project, in any currency.
+
+Two things block closing that gap from a CI or agent session, and neither is a code problem:
+
+1. `deploy-quote-sandbox.yml` checks out `feature/quote-generator-preview` unconditionally, so it
+   cannot deploy this branch. Deploying the currency code to the sandbox needs that ref changed, or a
+   merge to the branch the workflow is pinned to.
+2. Approving a PayPal order is a hosted flow requiring a sandbox buyer login. It cannot be automated
+   from here and should not be.
+
+**Automated tests mock PayPal. They are evidence that our verification logic rejects the wrong
+currency, amount, merchant and capture; they are not evidence that a real charge succeeds.**
+
+### Blockers requiring merchant-account access
+
+- **PayPal merchant currency handling is unverified.** No PayPal credentials are available in this
+  environment, so the account's received-currency configuration, cross-border fees and FX spread could not
+  be checked. This is the one open question behind the approved price points. PayPal's published list
+  confirms EUR, USD and GBP are all supported two-decimal currencies for Orders v2, but that is a
+  platform fact, not a fact about this merchant account. The sandbox Worker holds the credentials as
+  secrets, which are not readable; the answer has to come from the PayPal dashboard or from a readiness
+  row once the current build is deployed.
+- **Per-currency buyer eligibility is unverified.** `providerReadiness` still probes card-field
+  eligibility in EUR only. PayPal computes eligibility per request, including buyer country, so USD and
+  GBP card availability must be observed in the sandbox round trip rather than assumed.
+- No sandbox transaction has been run in any currency; see the gates below.
+
 ## Release gates still open
 
-- Real sandbox order approval/capture/webhook round trip and immediate download on the configured Worker.
+- Real sandbox order approval/capture/webhook round trip and immediate download on the configured Worker, run separately for USD, GBP and EUR, with the PayPal-side amount and currency checked against the quote row each time.
+- Card-field eligibility observed per currency on a real buyer browser, since PayPal computes it per request.
+- GA4 DebugView confirms a USD and a GBP sale report their own currency and value, not EUR.
 - Cancel/decline, ambiguous network failures, concurrent retries, webhook replay/refund, expired recovery link and private R2 access checks on actual Cloudflare services.
 - Actual iPhone Safari and Android Chrome testing, including all six logo formats, PDF first-page conversion, oversized/malformed files and recovery links after leaving the tab.
 - Browser layout and logo tests on the branch preview, including multiple-page A4 preview.
