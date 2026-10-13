@@ -75,6 +75,9 @@ jobs:
           grep -q 'googletagmanager.com/gtag/js?id=G-J3BBT6YZRB' <<<"$html" || { echo "::error::Google tag missing on production"; exit 1; }
           echo "Production tag present."
 
+      - name: Payhip products linked from the site (public pages, no orders)
+        run: node tests/browser/payhip-check.mjs --json /tmp/payhip.json
+
       - name: Browser audit of all 20 calculators
         run: |
           npm install --no-save playwright@1.56.1
