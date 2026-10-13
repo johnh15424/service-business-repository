@@ -1,5 +1,6 @@
 import { normaliseQuote, money, currencyDigits, QUOTE_PRICE, BASE_CURRENCY, priceLabel, priceValue } from './quote-model.js';
 import { convertLogo } from './quote-logo.js';
+import { quoteOfferCopy } from './result-cta.js';
 // Which currency the visitor pays US in. The server decides what may be offered and charged; this
 // remembers the visitor's pick for the tab so it survives re-previewing a quote. It is unrelated to
 // the currency printed on the quotation document, which comes from their calculator snapshot.
@@ -20,18 +21,22 @@ export function mountQuotePreview({name='Service',niche=name,getSnapshot}={}) {
   const option=()=>currencyOptions.find(o=>o.code===checkoutCurrency)||currencyOptions[0];
   const checkoutMinor=()=>option().minor;
   const PRICE=()=>priceLabel(checkoutMinor(),checkoutCurrency);
-  const entry=el('section','',{class:'quote-entry'}),open=el('button','Generate Professional Quote – '+PRICE(),{type:'button',class:'primary'});
-  const entryText=el('p','');
-  const setEntryText=()=>{entryText.textContent=`Create a professional quotation. Review it before a ${PRICE()} once-off PDF purchase. No subscription.`;};
+  // The primary paid offer under the recommended price. Copy is shared with the hero offer in result-cta.js.
+  const entry=el('section','',{class:'quote-entry','aria-labelledby':'spt-quote-entry-title'}),open=el('button','',{type:'button',class:'primary','data-quote-open':'results'});
+  const entryText=el('p',quoteOfferCopy.body),entryPrice=el('p','',{class:'quote-entry-price'}),entryNote=el('p',quoteOfferCopy.reassurance,{class:'quote-entry-note'});
+  const setEntryText=()=>{entryPrice.textContent=`${PRICE()} once-off`;};
   setEntryText();
-  entry.append(el('strong','Your price. Your branding. Ready to send.'),entryText,open);
+  entry.append(el('h3',quoteOfferCopy.headline,{id:'spt-quote-entry-title'}),entryText,entryPrice,open,entryNote);
   // Hidden until the server confirms checkout is fully configured, so no paid offer is shown that cannot be bought.
-  entry.hidden=true;estimate.querySelector('.estimate-top')?.after(entry);if(!entry.isConnected)estimate.prepend(entry);
-  fetch('/api/quotes/config').then(r=>r.ok?r.json():null).then(c=>{if(!c)return;applyCurrencyConfig(c);if(c.checkout)entry.hidden=false;}).catch(()=>{});
+  entry.hidden=true;(document.getElementById('spt-estimate-explain')||estimate.querySelector('.estimate-top'))?.after(entry);if(!entry.isConnected)estimate.prepend(entry);
+  const announce=available=>window.dispatchEvent(new CustomEvent('spt:quote-availability',{detail:{available,label:PRICE()}}));
+  fetch('/api/quotes/config').then(r=>r.ok?r.json():null).then(c=>{if(!c)return announce(false);applyCurrencyConfig(c);entry.hidden=!c.checkout;announce(Boolean(c.checkout));}).catch(()=>announce(false));
   const dialog=el('dialog','',{id:'spt-quote-preview',class:'quote-dialog','aria-labelledby':'quote-title'}),inner=el('div','',{class:'quote-inner'});
   const close=el('button','Close',{type:'button',class:'secondary'});close.addEventListener('click',()=>dialog.close());
   inner.append(close,el('h2','Create your professional quote',{id:'quote-title'}));
-  const notice=el('p','Preview is free. Secure PDF checkout is being prepared.');inner.append(notice);
+  const notice=el('p','Preview your quote free before paying.');inner.append(notice);
+  // Tells visitors when the line item still carries the example job's price rather than their own figures.
+  const exampleNote=el('p','',{class:'quote-example-note'});exampleNote.hidden=true;inner.append(exampleNote);
   const form=el('form'),grid=el('div','',{class:'quote-grid'}),fields={};
   function field(key,label,type='text',max=180){const wrap=el('label'),input=el(type==='textarea'?'textarea':'input','',{'aria-label':label,maxlength:String(max)});if(type!=='textarea')input.type=type;fields[key]=input;wrap.append(el('span',label),input);grid.append(wrap);return input;}
   field('businessName','Business name').required=true;field('businessAddress','Business address','textarea',700);
@@ -49,7 +54,7 @@ export function mountQuotePreview({name='Service',niche=name,getSnapshot}={}) {
   form.append(grid,logoHelp,el('h3','Itemised services'));
   const rows=el('div'),add=el('button','Add item',{type:'button',class:'secondary'});form.append(rows,add);
   const terms=el('textarea','',{'aria-label':'Optional terms and conditions',maxlength:'6000',placeholder:'Optional terms and conditions'});form.append(el('p','Optional terms and conditions'),terms);
-  const actions=el('div','',{class:'quote-actions'}),review=el('button','Review quotation',{type:'submit',class:'primary'});actions.append(review);
+  const actions=el('div','',{class:'quote-actions'}),review=el('button','Preview my quote (free)',{type:'submit',class:'primary'});actions.append(review);
   // One shared payment state drives two identical button groups: under the form and under the preview.
   // Card details are entered in PayPal-hosted fields; the card button only appears when PayPal reports this merchant eligible.
   function payGroup(){
@@ -69,7 +74,7 @@ export function mountQuotePreview({name='Service',niche=name,getSnapshot}={}) {
   // button can never disagree about what the visitor is about to be charged.
   function refreshPrices(){
     const label=PRICE(),amount=`${priceValue(checkoutMinor())} ${checkoutCurrency}`;
-    open.textContent='Generate Professional Quote – '+label;setEntryText();
+    open.textContent=quoteOfferCopy.button(label);setEntryText();
     for(const g of groups){
       g.card.textContent='Pay '+label+' by Card';g.paypal.textContent='Pay '+label+' with PayPal';
       g.total.textContent=`Total: ${amount}, one-time payment`;
@@ -200,6 +205,10 @@ export function mountQuotePreview({name='Service',niche=name,getSnapshot}={}) {
     try{await cardFields.submit();}catch{setStatus(cardFailed);busy=false;setPay(false);}
   }
   groups.forEach(g=>{g.card.addEventListener('click',()=>payByCard(g));g.paypal.addEventListener('click',()=>pay('paypal'));});
-  open.addEventListener('click',async()=>{try{snapshot=getSnapshot();}catch(e){entry.querySelector('p').textContent=e.message;return;}invalidate();rows.replaceChildren();lineRows.length=0;addRow(snapshot.service,(snapshot.amountMinor/10**currencyDigits(snapshot.currency)).toFixed(currencyDigits(snapshot.currency)));fields.taxRegistered.value=snapshot.taxRegistered?'yes':'no';rate.value=snapshot.taxRate;rate.disabled=!snapshot.taxRegistered;fields.taxLabel.value=snapshot.taxLabel;fields.reference.value||='Q-'+new Date().toISOString().slice(0,10).replaceAll('-','');fields.date.value||=new Date().toISOString().slice(0,10);validity.value||='30';paper.replaceChildren();dialog.showModal();quoteEvent('quote_builder_opened',niche);try{config=await(await fetch('/api/quotes/config')).json();applyCurrencyConfig(config);notice.textContent=config.checkout?(config.mode==='sandbox'?'TEST CHECKOUT: sandbox payments only. No real money.':`A completed PDF costs ${PRICE()} once-off. No registration or subscription.`):'Preview is free. PDF checkout is not yet available.';}catch{config={preview:false,checkout:false};}});
+  async function openEditor(placement='results'){try{snapshot=getSnapshot();}catch(e){entryText.textContent=e.message;estimate.scrollIntoView({behavior:'smooth',block:'start'});return;}
+    const example=document.body.dataset.sptEstimate==='example';exampleNote.hidden=!example;
+    exampleNote.textContent=example?'This price comes from the example job. Change the amount below, or close this and enter your own figures in the calculator first.':'';invalidate();rows.replaceChildren();lineRows.length=0;addRow(snapshot.service,(snapshot.amountMinor/10**currencyDigits(snapshot.currency)).toFixed(currencyDigits(snapshot.currency)));fields.taxRegistered.value=snapshot.taxRegistered?'yes':'no';rate.value=snapshot.taxRate;rate.disabled=!snapshot.taxRegistered;fields.taxLabel.value=snapshot.taxLabel;fields.reference.value||='Q-'+new Date().toISOString().slice(0,10).replaceAll('-','');fields.date.value||=new Date().toISOString().slice(0,10);validity.value||='30';paper.replaceChildren();if(!dialog.open)dialog.showModal();quoteEvent('quote_builder_opened',niche,{placement});try{config=await(await fetch('/api/quotes/config')).json();applyCurrencyConfig(config);notice.textContent=config.checkout?(config.mode==='sandbox'?'TEST CHECKOUT: sandbox payments only. No real money.':`Fill in your details and preview your quote free. You pay ${PRICE()} once-off only when you are happy with it, then download the PDF. No registration or subscription.`):'Preview is free. PDF checkout is not yet available.';}catch{config={preview:false,checkout:false};}}
+  open.addEventListener('click',()=>openEditor('results'));
+  window.addEventListener('spt:open-quote',e=>{if(!entry.hidden)openEditor(String(e.detail?.placement||'hero').slice(0,40));});
   dialog.addEventListener('close',()=>open.focus());
 }

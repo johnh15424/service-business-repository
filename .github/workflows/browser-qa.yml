@@ -1,0 +1,45 @@
+name: Browser QA
+
+# Real-browser regression for the conversion funnel on every PR: all 20 calculators at iPhone, Android,
+# tablet and desktop sizes, plus the complete €4 quotation journey against the local preview with a fake
+# PayPal. Nothing is deployed, no credential is used and no request reaches Google, PayPal or Payhip.
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    name: Calculator matrix and €4 quote journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Start local preview with mock checkout
+        run: |
+          QUOTE_DEV_CHECKOUT=mock node scripts/quote-dev-server.mjs > /tmp/preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8081/api/quotes/config >/dev/null && exit 0; sleep 1; done
+          cat /tmp/preview.log; exit 1
+      - name: Calculator matrix (20 calculators x 4 viewports)
+        run: node tests/browser/audit.mjs --json /tmp/audit.json
+      - name: €4 quotation journey (three calculator runtimes)
+        run: node tests/browser/quote-flow.mjs http://127.0.0.1:8081 house_cleaning,gutter_cleaning,pressure_washing,lawn_care,dog_grooming,mobile_car_detailing

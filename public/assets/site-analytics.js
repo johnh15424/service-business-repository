@@ -1,6 +1,12 @@
 
+  // Only the public site reports to the production GA4 property. Branch previews, workers.dev, the sandbox
+  // Worker and localhost run the same page code, but every gtag() call is held back locally (and kept in
+  // window.sptAnalyticsSuppressed for testing) so they can never pollute production reports.
+  var sptProductionHost = /^(www\.)?servicepricingtools\.com$/i.test(window.location.hostname);
+  if (!sptProductionHost) window['ga-disable-G-J3BBT6YZRB'] = true;
   window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
+  window.sptAnalyticsSuppressed = window.sptAnalyticsSuppressed || [];
+  function gtag(){ if (sptProductionHost) dataLayer.push(arguments); else window.sptAnalyticsSuppressed.push(Array.prototype.slice.call(arguments)); }
 
   // Google Consent Mode v2. Every visitor, in every region, starts with analytics and advertising storage
   // denied; only an explicit Accept stored on this device grants it. Undecided and rejecting visitors send
@@ -106,10 +112,14 @@
     } catch {}
   });
 
+  // Funnel milestones that describe the page, not a click: report each at most once per page view, however
+  // many code paths (button, auto-detection, mobile bar) notice it.
+  var oncePerPage = { calculator_viewed: 1, calculator_completed: 1 }, seen = {};
   function forwardCommercialEvent(event) {
     var detail = event && event.detail ? event.detail : {};
     var eventName = String(detail.event || '').trim();
     if (!eventName || /^(purchase|paid_purchase|refund)$/.test(eventName)) return;
+    if (oncePerPage[eventName]) { if (seen[eventName]) return; seen[eventName] = 1; }
 
     var params = {};
     if (detail.calculator) params.calculator = detail.calculator;
@@ -130,6 +140,6 @@
     var d = event.detail || {};
     if (!/^quote_[a-z_]+$/.test(String(d.event || ''))) return;
     var p = {product_type:'professional_quote'};
-    ['niche','value','currency','transaction_id','items'].forEach(function(k) { if(d[k] !== undefined) p[k] = d[k]; });
+    ['niche','placement','value','currency','transaction_id','items'].forEach(function(k) { if(d[k] !== undefined) p[k] = d[k]; });
     gtag('event', d.event, p);
   });

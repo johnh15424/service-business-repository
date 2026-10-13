@@ -26,12 +26,12 @@ test('injected tracking script runs and preserves checkout and event forwarding'
   assert.ok(html.includes('src="/assets/site-analytics.js"'));
   const inline = readFileSync('public/assets/site-analytics.js','utf8');
   const listeners = new Map();
-  const run = ({search='', pathname='/', stored=null, on=()=>{}}={}) => {
+  const run = ({search='', pathname='/', stored=null, on=()=>{}, hostname='servicepricingtools.com'}={}) => {
     const dataLayer = [];
     const store = new Map(stored ? [['spt_consent_v1', stored]] : []);
     const context = vm.createContext({
       URLSearchParams, dataLayer, Date, encodeURIComponent, JSON,
-      window: { location: {search, pathname, origin:'https://servicepricingtools.com'}, dataLayer, addEventListener: on,
+      window: { location: {search, pathname, hostname, origin:'https://'+hostname}, dataLayer, addEventListener: on,
         localStorage: { getItem: k => store.get(k) ?? null, setItem: (k,v) => store.set(k,v) } },
       document: { addEventListener() {} }
     });
