@@ -1,0 +1,353 @@
+name: Deploy Production Worker
+
+# Manual trigger ONLY. No push/pull_request trigger: nothing reaches production
+# unless the owner presses "Run workflow" and types the Worker name.
+#
+# deploy   — deploys the approved commit (APPROVED_SHA below) to the production
+#            Worker service-business-repository after every gate passes, verifies
+#            it on the public site and rolls back automatically if verification fails.
+# rollback — rolls the production Worker back to a given version ID, or to the
+#            previous version when none is given.
+#
+# International checkout stays OFF. This workflow refuses to deploy, and rolls
+# back, if QUOTE_CURRENCIES_APPROVED is present on the Worker in any form.
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'deploy = release the approved commit; rollback = restore an earlier version'
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - rollback
+      confirm:
+        description: 'Type the production Worker name exactly: service-business-repository'
+        required: true
+        type: string
+      rollback_version_id:
+        description: 'rollback only: Worker version ID to restore (blank = previous version). Shown in every deploy summary.'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  WORKER: service-business-repository
+  # PR #56 head, approved by the owner on 12 October 2026. Changing what goes to
+  # production means changing this line in a reviewed commit on main.
+  APPROVED_PR: '56'
+  APPROVED_SHA: 43aeec976d075777b71040fed7525a7c84a36478
+  D1_PRODUCTION_ID: c53af4a2-4931-40fe-882e-4acf749dd9cb
+  REQUIRED_MIGRATION: 0004_quote_currency.sql
+  PUBLIC_ORIGIN: https://servicepricingtools.com
+  WRANGLER_VERSION: 4.149.0
+
+jobs:
+  deploy:
+    name: Gate, deploy and verify production
+    if: ${{ inputs.operation == 'deploy' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Holds the production Cloudflare token. Add a required reviewer under
+    # Settings -> Environments -> production for a second approval tap.
+    environment: production
+
+    steps:
+      # ---- 1. Guard rails -----------------------------------------------
+      - name: Confirm target and launch ref
+        env:
+          USER_CONFIRMATION: ${{ inputs.confirm }}
+          LAUNCH_REF: ${{ github.ref }}
+        run: |
+          [ "$USER_CONFIRMATION" = "$WORKER" ] || { echo "::error::Confirmation must be exactly $WORKER"; exit 1; }
+          [ "$LAUNCH_REF" = "refs/heads/main" ] || { echo "::error::Launch from main only (got $LAUNCH_REF)"; exit 1; }
+          echo "Target $WORKER, source $APPROVED_SHA (PR #$APPROVED_PR)."
+
+      - name: Verify approved commit belongs to the PR and passed CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPO/pulls/$APPROVED_PR/commits" --paginate --jq '.[].sha' | grep -qx "$APPROVED_SHA" \
+            || { echo "::error::$APPROVED_SHA is not a commit of PR #$APPROVED_PR"; exit 1; }
+          gh api "repos/$REPO/commits/$APPROVED_SHA/check-runs?per_page=100" --jq '.check_runs[] | [.name, .status, (.conclusion // "none")] | @tsv' > checks.tsv
+          cat checks.tsv
+          for required in 'test' 'Suite, config guard and dry runs'; do
+            awk -F'\t' -v n="$required" '$1==n && $2=="completed" && $3=="success"{f=1} END{exit !f}' checks.tsv \
+              || { echo "::error::Required check '$required' has not passed on $APPROVED_SHA"; exit 1; }
+          done
+          if awk -F'\t' '$3 ~ /^(failure|cancelled|timed_out|action_required|stale|startup_failure)$/ {f=1} END{exit !f}' checks.tsv; then
+            echo "::error::A check on $APPROVED_SHA did not succeed"; exit 1
+          fi
+          echo "All checks on $APPROVED_SHA passed."
+
+      - name: Check out approved commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.APPROVED_SHA }}
+          persist-credentials: false
+
+      - name: Confirm checked-out commit
+        run: '[ "$(git rev-parse HEAD)" = "$APPROVED_SHA" ] || { echo "::error::HEAD is not $APPROVED_SHA"; exit 1; }'
+
+      # ---- 2. Cloudflare access ------------------------------------------
+      - name: Verify Cloudflare token and production access
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -uo pipefail
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must be set as secrets of the 'production' environment (or repository). See docs/production-deploy.md."
+            exit 1
+          fi
+          code=$(curl -sS -o script.json -w '%{http_code}' -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/$WORKER/settings")
+          if [ "$code" != "200" ]; then
+            echo "::error::Token cannot read Worker $WORKER (HTTP $code). It needs Account > Workers Scripts: Edit on this account. A sandbox-only token will fail here by design."
+            exit 1
+          fi
+          echo "Token can reach Worker $WORKER."
+
+      - name: Verify production D1 migrations (including 0004)
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          grep -qF "\"database_id\": \"$D1_PRODUCTION_ID\"" wrangler.jsonc || { echo "::error::wrangler.jsonc does not bind production D1 $D1_PRODUCTION_ID"; exit 1; }
+          q() {
+            curl -sS -f -X POST -H "Authorization: Bearer $CF_TOKEN" -H 'Content-Type: application/json' \
+              --data "$(jq -cn --arg sql "$1" '{sql:$sql}')" \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/d1/database/$D1_PRODUCTION_ID/query" \
+              || { echo "::error::D1 query failed. The token needs Account > D1: Read."; exit 1; }
+          }
+          q "SELECT name FROM d1_migrations ORDER BY id" | jq -r '.result[0].results[].name' > applied.txt
+          q "SELECT name FROM pragma_table_info('quotes')" | jq -r '.result[0].results[].name' > columns.txt
+          echo "Applied:"; cat applied.txt
+          grep -qx "$REQUIRED_MIGRATION" applied.txt || { echo "::error::$REQUIRED_MIGRATION is not applied to production D1"; exit 1; }
+          grep -qx price_currency columns.txt || { echo "::error::quotes.price_currency missing in production D1"; exit 1; }
+          # Every migration this commit ships must already be applied: code never goes out ahead of its schema.
+          for f in $(ls migrations/*.sql | xargs -n1 basename | sort); do
+            grep -qx "$f" applied.txt || { echo "::error::Migration $f in this commit is not applied to production"; exit 1; }
+          done
+          echo "Production D1 is at $REQUIRED_MIGRATION with price_currency present."
+
+      # ---- 3. Clean CI and dry run ---------------------------------------
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+
+      - name: Install dependencies (clean)
+        run: npm ci
+
+      - name: Syntax checks
+        run: npm run check
+
+      - name: Test suite
+        run: npm test
+
+      - name: Verify sandbox configuration guard
+        run: node scripts/verify-sandbox-config.mjs
+
+      - name: Verify approved prices and EUR-only default
+        run: |
+          node --input-type=module <<'NODE'
+          import { CHECKOUT_PRICES, enabledCurrencies } from './public/assets/quote-model.js';
+          const want = { EUR: 400, USD: 499, GBP: 349 };
+          const got = { ...CHECKOUT_PRICES };
+          if (JSON.stringify(got) !== JSON.stringify(want)) { console.error('::error::Prices differ from approval:', got); process.exit(1); }
+          const on = enabledCurrencies({ QUOTE_PAYMENT_MODE: 'live' });
+          if (JSON.stringify(on) !== '["EUR"]') { console.error('::error::Unset gate must mean EUR only, got', on); process.exit(1); }
+          console.log('Prices EUR 4.00 / USD 4.99 / GBP 3.49; gate unset = EUR only.');
+          NODE
+
+      - name: Wrangler dry run (production)
+        run: |
+          set -o pipefail
+          npx wrangler deploy --dry-run --outdir /tmp/dryrun-prod 2>&1 | tee /tmp/prod.log
+          for expected in 'QUOTE_DB (spt-quotes-production)' 'spt-quotes-production-private (eu)' 'QUOTE_PAYMENT_MODE ("live")'; do
+            grep -qF "$expected" /tmp/prod.log || { echo "::error::Dry run missing binding: $expected"; exit 1; }
+          done
+          ! grep -q 'QUOTE_CURRENCIES_APPROVED' /tmp/prod.log wrangler.jsonc || { echo "::error::QUOTE_CURRENCIES_APPROVED must not be in config"; exit 1; }
+          ! grep -q 'keep_vars' wrangler.jsonc || { echo "::error::keep_vars would preserve dashboard vars; refusing"; exit 1; }
+          echo "Dry run resolves production bindings with international checkout off."
+
+      # ---- 4. Baseline before touching production ------------------------
+      - name: Record production baseline
+        id: baseline
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler deployments status --json 2>/dev/null > before.json
+          prev=$(jq -r '[.. | objects | select(has("version_id")) | select((.percentage // 100) == 100) | .version_id][0] // empty' before.json)
+          [ -n "$prev" ] || { echo "::error::Could not read current production version"; cat before.json; exit 1; }
+          echo "previous_version=$prev" >> "$GITHUB_OUTPUT"
+          npx wrangler secret list --format json 2>/dev/null | jq -r '.[].name' | sort > secrets-before.txt
+          echo "Secret names:"; cat secrets-before.txt
+          if grep -qx QUOTE_CURRENCIES_APPROVED secrets-before.txt; then
+            echo "::error::QUOTE_CURRENCIES_APPROVED is set as a Worker secret, which would switch on USD/GBP. Remove it first."; exit 1
+          fi
+          curl -sS -f --retry 3 "$PUBLIC_ORIGIN/api/quotes/config" > config-before.json \
+            || { echo "::error::Public config endpoint unreachable from the runner; not deploying blind."; exit 1; }
+          jq . config-before.json
+          echo "mode=$(jq -r .mode config-before.json)" >> "$GITHUB_OUTPUT"
+          echo "checkout=$(jq -r .checkout config-before.json)" >> "$GITHUB_OUTPUT"
+          echo "Current production version: $prev"
+
+      # ---- 5. Deploy ------------------------------------------------------
+      - name: Deploy approved commit to production
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # Block scalar: in a plain YAML scalar " #" starts a comment and truncates the command.
+        run: |
+          npx wrangler deploy --message "PR #$APPROVED_PR $APPROVED_SHA via GitHub Actions run $GITHUB_RUN_ID" --tag "pr$APPROVED_PR-${APPROVED_SHA:0:7}"
+
+      # ---- 6. Verify production ------------------------------------------
+      - name: Verify production readiness and currency configuration
+        id: verify
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREV: ${{ steps.baseline.outputs.previous_version }}
+          MODE_BEFORE: ${{ steps.baseline.outputs.mode }}
+          CHECKOUT_BEFORE: ${{ steps.baseline.outputs.checkout }}
+        run: |
+          set -euo pipefail
+          npx wrangler deployments status --json 2>/dev/null > after.json
+          now=$(jq -r '[.. | objects | select(has("version_id")) | select((.percentage // 100) == 100) | .version_id][0] // empty' after.json)
+          { [ -n "$now" ] && [ "$now" != "$PREV" ]; } || { echo "::error::New version is not serving 100% (now=$now prev=$PREV)"; exit 1; }
+          echo "new_version=$now" >> "$GITHUB_OUTPUT"
+
+          npx wrangler secret list --format json 2>/dev/null | jq -r '.[].name' | sort > secrets-after.txt
+          diff secrets-before.txt secrets-after.txt || { echo "::error::Worker secret names changed during deploy"; exit 1; }
+
+          # Edge propagation: give the new version up to ~3 minutes to serve the approved code.
+          ok=0
+          for i in $(seq 1 18); do
+            if curl -sS -f "$PUBLIC_ORIGIN/assets/quote-model.js?v=$GITHUB_RUN_ID-$i" -o model.js \
+               && grep -q 'USD: 499, GBP: 349' model.js; then ok=1; break; fi
+            sleep 10
+          done
+          [ "$ok" = 1 ] || { echo "::error::Public site is not serving the approved quote-model.js"; exit 1; }
+
+          curl -sS -f "$PUBLIC_ORIGIN/api/quotes/config" > config-after.json
+          jq . config-after.json
+          jq -e '.currency == "EUR" and .priceMinor == 400 and .price == 4' config-after.json >/dev/null \
+            || { echo "::error::Base price is not EUR 4.00"; exit 1; }
+          jq -e '[.currencies[] | {code, minor}] == [{"code":"EUR","minor":400}]' config-after.json >/dev/null \
+            || { echo "::error::Checkout currencies are not EUR-only"; exit 1; }
+          [ "$(jq -r .mode config-after.json)" = "$MODE_BEFORE" ] || { echo "::error::Payment mode changed from $MODE_BEFORE"; exit 1; }
+          [ "$(jq -r .checkout config-after.json)" = "$CHECKOUT_BEFORE" ] || { echo "::error::Checkout availability changed from $CHECKOUT_BEFORE"; exit 1; }
+          code=$(curl -sS -o /dev/null -w '%{http_code}' "$PUBLIC_ORIGIN/")
+          [ "$code" = "200" ] || { echo "::error::Home page returned $code"; exit 1; }
+          echo "Production serves $now: EUR 4.00 only, mode $MODE_BEFORE, checkout $CHECKOUT_BEFORE."
+
+      # ---- 7. Automatic rollback -----------------------------------------
+      # Also covers a deploy that failed part-way: roll back whenever the deploy
+      # step ran and production no longer serves the baseline version.
+      - name: Roll back on failed deploy or verification
+        if: ${{ failure() && (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure') }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PREV: ${{ steps.baseline.outputs.previous_version }}
+        run: |
+          current=$(npx wrangler deployments status --json 2>/dev/null | jq -r '[.. | objects | select(has("version_id")) | select((.percentage // 100) == 100) | .version_id][0] // empty' || true)
+          if [ "$current" = "$PREV" ]; then
+            echo "Production still serves baseline $PREV; nothing to roll back."
+            exit 0
+          fi
+          echo "::warning::Deploy or verification failed; restoring $PREV (current: ${current:-unknown})"
+          npx wrangler rollback "$PREV" --name "$WORKER" --message "Auto-rollback: run $GITHUB_RUN_ID failed verification" -y
+          npx wrangler deployments status
+
+      - name: Summary
+        if: always()
+        env:
+          PREV: ${{ steps.baseline.outputs.previous_version }}
+          NEW: ${{ steps.verify.outputs.new_version }}
+          RESULT: ${{ job.status }}
+          DEPLOYED: ${{ steps.deploy.outcome }}
+        run: |
+          {
+            echo "### Production deployment: $RESULT"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| Worker | $WORKER |"
+            echo "| Source | PR #$APPROVED_PR @ \`$APPROVED_SHA\` |"
+            echo "| Deploy step | $DEPLOYED |"
+            echo "| Previous version (rollback target) | \`${PREV:-n/a}\` |"
+            echo "| New version | \`${NEW:-n/a}\` |"
+            echo "| Checkout currencies | EUR 4.00 only (USD 4.99 / GBP 3.49 approved, inactive) |"
+            echo ""
+            echo "To undo: Actions → Deploy Production Worker → Run workflow → operation **rollback**, version \`${PREV:-<id>}\`."
+            echo ""
+            echo "Next: merge PR #$APPROVED_PR so Workers Builds on main keeps serving this code."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rollback:
+    name: Roll back production
+    if: ${{ inputs.operation == 'rollback' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+
+    steps:
+      - name: Confirm target and version
+        env:
+          USER_CONFIRMATION: ${{ inputs.confirm }}
+          VERSION_ID: ${{ inputs.rollback_version_id }}
+          LAUNCH_REF: ${{ github.ref }}
+        run: |
+          [ "$USER_CONFIRMATION" = "$WORKER" ] || { echo "::error::Confirmation must be exactly $WORKER"; exit 1; }
+          [ "$LAUNCH_REF" = "refs/heads/main" ] || { echo "::error::Launch from main only"; exit 1; }
+          if [ -n "$VERSION_ID" ] && ! printf '%s' "$VERSION_ID" | grep -Eqx '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'; then
+            echo "::error::rollback_version_id must be a version UUID or blank"; exit 1
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+
+      - name: Roll back Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERSION_ID: ${{ inputs.rollback_version_id }}
+        run: |
+          set -euo pipefail
+          # Run outside any checkout so no repository code or config is involved.
+          cd "$RUNNER_TEMP"
+          npx --yes "wrangler@$WRANGLER_VERSION" rollback ${VERSION_ID:+"$VERSION_ID"} --name "$WORKER" \
+            --message "Manual rollback via GitHub Actions run $GITHUB_RUN_ID" -y
+          npx --yes "wrangler@$WRANGLER_VERSION" deployments status --name "$WORKER"
+
+      - name: Verify site after rollback
+        run: |
+          set -euo pipefail
+          sleep 20
+          curl -sS -f "$PUBLIC_ORIGIN/api/quotes/config" | tee config.json | jq .
+          jq -e '[.currencies[]? | .code] - ["EUR"] == []' config.json >/dev/null \
+            || { echo "::error::Non-EUR checkout is enabled after rollback"; exit 1; }
+          [ "$(curl -sS -o /dev/null -w '%{http_code}' "$PUBLIC_ORIGIN/")" = 200 ] || { echo "::error::Home page not 200"; exit 1; }
+          echo "Rollback complete; site up, EUR-only." >> "$GITHUB_STEP_SUMMARY"
