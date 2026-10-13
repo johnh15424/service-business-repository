@@ -14,6 +14,12 @@ const args = process.argv.slice(2);
 const base = (args.find(a => /^https?:/.test(a)) || 'http://127.0.0.1:8081').replace(/\/$/, '');
 const jsonOut = args.includes('--json') ? args[args.indexOf('--json') + 1] : null;
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1].split(',') : null;
+// --deployed: audit a real Worker (branch preview or production) as served, without emulating its head
+// injection. --expect-tag says whether that host must load the Google tag (production) or must not (preview).
+// --expect-quote=hidden is for hosts where checkout is intentionally off (previews never take payments).
+const deployed = args.includes('--deployed');
+const expectTag = args.includes('--expect-tag') ? args[args.indexOf('--expect-tag') + 1] === 'yes' : null;
+const quoteHidden = args.includes('--expect-quote=hidden');
 const VIEWPORTS = {
   iphone: devices['iPhone 13'],
   android: devices['Pixel 7'],
@@ -31,8 +37,9 @@ async function auditPage(browser, niche, vpName) {
   const out = { niche: niche.id, viewport: vpName, errors: [], warnings: [], events: [] };
   page.on('pageerror', e => out.errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && !/ERR_BLOCKED|ERR_FAILED|net::/.test(m.text())) out.errors.push('console: ' + m.text()); });
-  await page.route(/googletagmanager|google-analytics|paypal|payhip/, r => r.abort('blockedbyclient'));
-  await page.route(u => u.origin === base && /\.html$|\/$/.test(u.pathname), async r => {
+  out.tagRequests = 0;
+  await page.route(/googletagmanager|google-analytics|paypal|payhip/, r => { if (/googletagmanager|google-analytics/.test(r.request().url())) out.tagRequests++; return r.abort('blockedbyclient'); });
+  if (!deployed) await page.route(u => u.origin === base && /\.html$|\/$/.test(u.pathname), async r => {
     const res = await r.fetch(); const body = (await res.text()).replace('<head>', '<head>' + HEAD);
     await r.fulfill({ response: res, body, headers: { ...res.headers(), 'content-type': 'text/html' } });
   });
@@ -83,7 +90,7 @@ async function auditPage(browser, niche, vpName) {
   out.example = await example.count() > 0;
   if (out.example) await example.click();
   const before = await page.locator('[data-result="hero"]').first().textContent();
-  const hours = page.locator('#workHours, #hours, #serviceHours, #cleanHours').first();
+  const hours = page.locator('#workHours, #hours, #baseMinutes').first();
   if (await hours.count()) { await hours.fill(String(Number(await hours.inputValue() || 1) + 1)); await hours.dispatchEvent('input'); }
   const submit = page.locator('form button[type="submit"]').first();
   if (await submit.count()) await submit.click();
@@ -91,10 +98,14 @@ async function auditPage(browser, niche, vpName) {
   out.recalculated = before !== after;
   if (!out.recalculated) out.warnings.push('estimate did not change after editing hours');
 
+  if (expectTag === true && !out.tagRequests) out.errors.push('production host did not request the Google tag');
+  if (expectTag === false && out.tagRequests) out.errors.push(`non-production host requested Google tag/collection ${out.tagRequests} times`);
   // Quote generator with calculator context.
   await page.waitForTimeout(300);
   const open = page.locator('[data-quote-open], .quote-entry button').first();
-  if (await open.count() && await open.isVisible()) {
+  if (quoteHidden) {
+    if (await page.locator('[data-quote-open]:visible').count()) out.errors.push('€4 offer visible on a host where checkout must be off');
+  } else if (await open.count() && await open.isVisible()) {
     await open.scrollIntoViewIfNeeded();
     const box = await open.boundingBox();
     const covered = await page.evaluate(({ x, y }) => { const t = document.elementFromPoint(x, y); return t && !t.closest('[data-quote-open], .quote-entry button') ? (t.id || t.className || t.tagName) : null; }, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
@@ -112,16 +123,18 @@ async function auditPage(browser, niche, vpName) {
   } else out.errors.push('quote CTA missing or hidden');
   // Every checklist and toolkit link: one click, one analytics event, correct destination.
   if (out.quoteOpened) await page.locator('#spt-quote-preview button', { hasText: 'Close' }).click();
+  // gtag() calls as queued for Google: window.dataLayer on production (where the Google tag itself is blocked
+  // by this audit, so nothing is sent), window.sptAnalyticsSuppressed everywhere else.
+  await page.evaluate(() => { window.__sent = () => [...(window.sptAnalyticsSuppressed || []), ...[...(window.dataLayer || [])].filter(a => a && typeof a === 'object' && 'length' in a && !Array.isArray(a)).map(a => Array.from(a))]; });
   out.linkClicks = await page.evaluate(() => {
     const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && !el.closest('[hidden]'); };
     const links = [...document.querySelectorAll('a[data-free-cta], a[data-paid-cta]')].filter(vis);
-    const before = (window.sptAnalyticsSuppressed || []).length;
     const out = [];
     for (const a of links) {
       const stop = e => e.preventDefault(); a.addEventListener('click', stop);
-      const n = (window.sptAnalyticsSuppressed || []).length;
+      const n = window.__sent().length;
       a.click(); a.removeEventListener('click', stop);
-      const sent = (window.sptAnalyticsSuppressed || []).slice(n).filter(x => x[0] === 'event');
+      const sent = window.__sent().slice(n).filter(x => x[0] === 'event');
       out.push({ kind: a.dataset.freeCta ? 'free' : 'paid', placement: a.dataset.freeCta || a.dataset.paidCta, href: a.href, events: sent.map(x => x[1] + '@' + (x[2]?.placement || '')) });
     }
     return out;
@@ -131,12 +144,12 @@ async function auditPage(browser, niche, vpName) {
     if (c.events.length !== 1 || c.events[0] !== want) out.errors.push(`${c.kind} link @${c.placement} sent [${c.events.join(',')}], expected ${want}`);
     if (c.kind === 'paid' && !/payhip\.com\/buy\?link=/.test(c.href)) out.errors.push(`paid link @${c.placement} not upgraded to direct checkout: ${c.href}`);
   }
-  out.gtagEvents = await page.evaluate(() => (window.sptAnalyticsSuppressed || []).filter(a => a[0] === 'event').map(a => a[1]));
+  out.gtagEvents = await page.evaluate(() => window.__sent().filter(a => a[0] === 'event').map(a => a[1]));
   for (const once of ['calculator_viewed', 'calculator_completed']) if (out.gtagEvents.filter(e => e === once).length > 1) out.errors.push(once + ' sent more than once');
   out.events = await page.evaluate(() => window.__events.map(e => e.event + (e.placement ? '@' + e.placement : '')));
   const counts = out.events.reduce((m, e) => (m[e] = (m[e] || 0) + 1, m), {});
   out.duplicateEvents = Object.entries(counts).filter(([e, n]) => n > 1 && /viewed|opened/.test(e)).map(([e]) => e);
-  for (const need of ['calculator_viewed', 'quote_builder_opened']) if (!out.events.some(e => e.startsWith(need))) out.warnings.push('missing event ' + need);
+  for (const need of quoteHidden ? ['calculator_viewed'] : ['calculator_viewed', 'quote_builder_opened']) if (!out.events.some(e => e.startsWith(need))) out.warnings.push('missing event ' + need);
   if (out.duplicateEvents.length) out.errors.push('duplicate events: ' + out.duplicateEvents.join(','));
   await ctx.close();
   return out;

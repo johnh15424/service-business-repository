@@ -43,3 +43,39 @@ jobs:
         run: node tests/browser/audit.mjs --json /tmp/audit.json
       - name: €4 quotation journey (three calculator runtimes)
         run: node tests/browser/quote-flow.mjs http://127.0.0.1:8081 house_cleaning,gutter_cleaning,pressure_washing,lawn_care,dog_grooming,mobile_car_detailing
+
+  branch-preview:
+    name: Deployed branch preview (no production analytics, no payments)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+      - run: npm ci
+      - name: Wait for the Workers Builds preview of this commit
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          alias=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+          url="https://${alias}-service-business-repository.irishambience.workers.dev"
+          echo "PREVIEW_URL=$url" >> "$GITHUB_ENV"
+          want=$(sha256sum public/assets/result-cta.js | cut -d' ' -f1)
+          for i in $(seq 1 40); do
+            got=$(curl -sS -f "$url/assets/result-cta.js?v=$i" 2>/dev/null | sha256sum | cut -d' ' -f1 || true)
+            [ "$got" = "$want" ] && { echo "Preview $url serves this commit."; exit 0; }
+            sleep 15
+          done
+          echo "::error::Preview $url did not serve this commit within 10 minutes"; exit 1
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Audit the deployed preview
+        run: node tests/browser/audit.mjs "$PREVIEW_URL" --deployed --expect-tag no --expect-quote=hidden --json /tmp/preview-audit.json

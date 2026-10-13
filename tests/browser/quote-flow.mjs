@@ -33,7 +33,7 @@ for (const id of ids) {
     await page.goto(base + niche.calculatorPath, { waitUntil: 'networkidle' });
     await page.locator('#spt-consent button', { hasText: 'Reject' }).click();
     // Visitor enters their own figure, so the quote should not be flagged as example pricing.
-    const hours = page.locator('#workHours, #hours').first();
+    const hours = page.locator('#workHours, #hours, #baseMinutes').first();
     await hours.fill(String(Number(await hours.inputValue()) + 1));
     await page.waitForTimeout(200);
     const shownPrice = (await page.locator('[data-result="preTax"]').first().textContent()).replace(/[^0-9.]/g, '');

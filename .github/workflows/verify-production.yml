@@ -1,0 +1,82 @@
+name: Verify Production
+
+# Read-only verification of what servicepricingtools.com is serving right now, whichever path deployed it
+# (Cloudflare Workers Builds on a merge to main, or the manual Deploy Production Worker workflow).
+# It never deploys, never writes to Cloudflare and never takes a payment. Requests to Google, PayPal and
+# Payhip from the browser are blocked, so the audit itself adds no analytics traffic.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Optional: the main commit production should be serving (checked against its assets)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Production health, EUR-only checkout and 20-calculator audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      PUBLIC_ORIGIN: https://servicepricingtools.com
+      WORKER: service-business-repository
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+      - run: npm ci
+
+      - name: Serving version
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler deployments status --json 2>/dev/null | tee status.json | jq '{created_on, source, versions}'
+          npx wrangler secret list --format json 2>/dev/null | jq -r '.[].name' | sort | tee secrets.txt
+          for s in PAYPAL_CLIENT_ID PAYPAL_CLIENT_SECRET PAYPAL_MERCHANT_ID PAYPAL_WEBHOOK_ID QUOTE_LIVE_APPROVED; do
+            grep -qx "$s" secrets.txt || { echo "::error::Worker secret $s is missing"; exit 1; }
+          done
+          ! grep -qx QUOTE_CURRENCIES_APPROVED secrets.txt || { echo "::error::QUOTE_CURRENCIES_APPROVED is set"; exit 1; }
+
+      - name: Production is serving this commit's front end
+        run: |
+          set -euo pipefail
+          ok=1
+          for f in assets/result-cta.js assets/quote-preview.js assets/site-analytics.js assets/quote-model.js; do
+            live=$(curl -sS -f "$PUBLIC_ORIGIN/$f?v=$GITHUB_RUN_ID" | sha256sum | cut -d' ' -f1)
+            here=$(sha256sum "public/$f" | cut -d' ' -f1)
+            if [ "$live" = "$here" ]; then echo "match  $f"; else echo "::error::$f served by production differs from this commit"; ok=0; fi
+          done
+          [ "$ok" = 1 ]
+
+      - name: EUR-only €4 checkout and health
+        run: |
+          set -euo pipefail
+          curl -sS -f "$PUBLIC_ORIGIN/api/quotes/config" | tee config.json | jq 'del(.paypalClientId)'
+          jq -e '.mode == "live" and .checkout == true and .currency == "EUR" and .priceMinor == 400' config.json >/dev/null \
+            || { echo "::error::Live EUR €4 checkout is not available"; exit 1; }
+          jq -e '[.currencies[] | {code, minor}] == [{"code":"EUR","minor":400}]' config.json >/dev/null \
+            || { echo "::error::Checkout currencies are not EUR-only"; exit 1; }
+          for path in / /calculators/ /toolkits/ /quote-download/; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "$PUBLIC_ORIGIN$path"); echo "$code $path"
+            [ "$code" = 200 ] || { echo "::error::$path returned $code"; exit 1; }
+          done
+          html=$(curl -sS "$PUBLIC_ORIGIN/house-cleaning-price-calculator/")
+          grep -q 'googletagmanager.com/gtag/js?id=G-J3BBT6YZRB' <<<"$html" || { echo "::error::Google tag missing on production"; exit 1; }
+          echo "Production tag present."
+
+      - name: Browser audit of all 20 calculators
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node tests/browser/audit.mjs "$PUBLIC_ORIGIN" --deployed --expect-tag yes --json /tmp/prod-audit.json
